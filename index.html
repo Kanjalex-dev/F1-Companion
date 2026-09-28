@@ -1,0 +1,1696 @@
+<title>F1 Companion</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+
+<style>
+/* ------------------------------------------------------------------
+   F1 Companion — page unique, autonome, sans dépendance réseau.
+   Thème sombre unique et assumé : c'est le monde visuel de la F1.
+   Toutes les couleurs sont peintes en dur pour que la page tienne
+   quel que soit le fond de l'hôte.
+   ------------------------------------------------------------------ */
+:root {
+  --ink:        #0A0A0E;
+  --surface:    #14141C;
+  --surface-2:  #1D1D28;
+  --line:       #2B2B3A;
+  --red:        #E10600;
+  --red-dim:    #8E0400;
+  --text:       #F2F2F5;
+  --muted:      #9494A6;   /* remonté depuis #8B8B9C : contraste des micro-labels */
+  --live:       #00D26A;
+  --warn:       #FFB020;
+
+  --display: "Saira Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body:    "Saira", system-ui, -apple-system, sans-serif;
+  --mono:    "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  --tabbar: 62px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; border-radius: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ---------- Ossature ---------- */
+
+.app {
+  max-width: 540px; margin: 0 auto;
+  padding: 0 16px calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 78px);
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 18px 0 14px;
+}
+.wordmark { font-family: var(--display); font-weight: 800; font-size: 25px; letter-spacing: -.02em; line-height: 1; }
+.wordmark span { color: var(--red); }
+.zone { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--muted); }
+
+.screen { display: none; }
+.screen.on { display: block; }
+
+/* ---------- Barre d'onglets ---------- */
+
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: flex;
+  background: rgba(10,10,14,.94); backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tabbar button {
+  flex: 1; height: var(--tabbar);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--muted); font-size: 10px; font-weight: 600;
+  letter-spacing: .03em; text-transform: uppercase; transition: color .15s;
+}
+.tabbar button[aria-selected="true"] { color: var(--text); }
+.tabbar button[aria-selected="true"] .glyph { color: var(--red); }
+.glyph { font-size: 17px; line-height: 1; }
+
+/* ---------- Barre d'action « Regarder » ----------
+   Persistante dès qu'une séance est en cours ou imminente : c'est le
+   raccourci qui évite les trois taps pour lancer un diffuseur. */
+.watchbar {
+  position: fixed; left: 0; right: 0;
+  bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px));
+  z-index: 41;
+  max-width: 540px; margin: 0 auto; padding: 8px 16px;
+  display: none;
+}
+.watchbar.on { display: block; }
+.watchbar button {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 12px 15px; border-radius: 11px;
+  background: var(--red); color: #fff;
+  font-family: var(--display); font-weight: 700; font-size: 15.5px;
+  letter-spacing: .04em; text-transform: uppercase;
+  box-shadow: 0 6px 20px rgba(0,0,0,.45);
+}
+.watchbar .sub {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0; text-transform: none; opacity: .85;
+}
+
+/* ---------- Blocs ---------- */
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+
+.eyebrow {
+  font-family: var(--display); font-weight: 700; font-size: 11.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+
+.hero {
+  position: relative; overflow: hidden;
+  background: radial-gradient(120% 100% at 100% 0%, rgba(225,6,0,.20), transparent 62%), var(--surface-2);
+  border: 1px solid var(--line); border-radius: 16px; padding: 18px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.hero::before { content:""; position:absolute; inset:0 auto 0 0; width:3px; background:var(--red); }
+.hero-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.hero-flag { font-size: 30px; line-height: 1; }
+
+.session-name {
+  font-family: var(--display); font-weight: 800; font-size: 38px;
+  line-height: .96; letter-spacing: -.01em; text-wrap: balance; margin: 0;
+}
+.gp-name { font-size: 14px; font-weight: 600; color: var(--muted); margin-top: 5px; }
+
+.countdown { display: flex; gap: 8px; }
+.unit {
+  flex: 1; background: rgba(0,0,0,.34); border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 4px 6px; text-align: center;
+}
+.unit b {
+  display: block; font-family: var(--mono); font-weight: 700; font-size: 25px;
+  font-variant-numeric: tabular-nums; line-height: 1.05;
+}
+.unit i { font-style: normal; font-size: 9.5px; font-weight: 600; letter-spacing: .1em; color: var(--muted); }
+
+.times { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.times div { display: flex; justify-content: space-between; gap: 12px; }
+.times span:first-child { color: var(--muted); }
+.times b { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.cta {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: var(--red); color: #fff;
+  font-family: var(--display); font-weight: 700; font-size: 16px;
+  letter-spacing: .04em; text-transform: uppercase;
+  padding: 12px 15px; border-radius: 10px; transition: background .15s;
+}
+.cta:hover { background: #c60500; }
+
+/* ---------- Pastilles ---------- */
+
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 5px; white-space: nowrap;
+}
+.pill.live  { color: var(--live); background: rgba(0,210,106,.13); }
+.pill.free  { color: var(--live); background: rgba(0,210,106,.13); }
+.pill.warn  { color: var(--warn); background: rgba(255,176,32,.13); }
+.pill.lang  { color: #fff;        background: var(--red); }
+.pill.quiet { color: var(--muted); background: rgba(148,148,166,.15); }
+.pill.owned { color: var(--live); background: rgba(0,210,106,.13); }
+
+.dot { width:6px; height:6px; border-radius:50%; background:currentColor; animation: blink 1.7s ease-in-out infinite; }
+@keyframes blink { 0%,100% { opacity:1 } 50% { opacity:.3 } }
+
+/* ---------- Indicateur de qualité ---------- */
+
+.qual { display: inline-flex; align-items: center; gap: 6px; }
+.bars { display: inline-flex; gap: 2px; align-items: flex-end; }
+.bars i { display: block; width: 4px; border-radius: 1px; background: var(--line); }
+.bars i:nth-child(1) { height: 6px; }
+.bars i:nth-child(2) { height: 9px; }
+.bars i:nth-child(3) { height: 12px; }
+.bars i.fill { background: var(--text); }
+.bars.est i.fill { background: var(--muted); }
+.qual-label { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--muted); }
+
+/* ---------- Segmenté ---------- */
+
+.seg {
+  display: flex; gap: 3px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: 3px;
+}
+.seg button {
+  flex: 1; padding: 7px 4px; border-radius: 7px;
+  font-size: 12.5px; font-weight: 600; color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.seg button[aria-pressed="true"] { background: var(--red); color: #fff; }
+
+/* ---------- Manches ---------- */
+
+.round { background: var(--surface); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; }
+.round.next { border-color: var(--red-dim); background: var(--surface-2); }
+.round.done .round-head { opacity: .52; }
+
+.round-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 14px; text-align: left; }
+.round-flag { font-size: 26px; line-height: 1; }
+.round-id { font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: .06em; }
+.round-title { font-family: var(--display); font-weight: 700; font-size: 18px; line-height: 1.1; }
+.round-sub { font-size: 11.5px; color: var(--muted); }
+.round-when {
+  margin-left: auto; text-align: right; font-family: var(--mono);
+  font-size: 11.5px; font-weight: 500; color: var(--muted); white-space: nowrap;
+}
+.chev { color: var(--muted); font-size: 12px; transition: transform .2s; }
+.round[open-state="1"] .chev { transform: rotate(90deg); }
+
+.sessions { border-top: 1px solid var(--line); padding: 4px 6px 6px; }
+
+.srow {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 10px 8px; text-align: left; border-radius: 9px; transition: background .13s;
+}
+.srow:hover { background: rgba(255,255,255,.035); }
+.srow + .srow { border-top: 1px solid rgba(43,43,58,.6); }
+.srow-tag {
+  font-family: var(--display); font-weight: 700; font-size: 12px;
+  letter-spacing: .05em; width: 62px; flex: none; color: var(--muted);
+}
+.srow.key .srow-tag { color: var(--text); }
+.srow-day { font-size: 12px; color: var(--muted); }
+.srow-time { margin-left: auto; font-family: var(--mono); font-size: 13.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.srow.past { opacity: .45; }
+
+/* ---------- Feuille de séance ---------- */
+
+.sheet-bg { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.62); backdrop-filter: blur(3px); display: none; }
+.sheet-bg.on { display: block; }
+
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 51;
+  max-height: 92vh; max-width: 540px; margin: 0 auto;
+  background: var(--ink); border: 1px solid var(--line); border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  transform: translateY(100%);
+  transition: transform .26s cubic-bezier(.32,.72,0,1);
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+.sheet.on { transform: translateY(0); }
+
+.sheet-bar {
+  position: sticky; top: 0; background: var(--ink); padding: 12px 0 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--line); margin-bottom: 14px;
+}
+.close {
+  width: 30px; height: 30px; flex: none; border-radius: 50%;
+  background: var(--surface-2); color: var(--muted); font-size: 15px; line-height: 1;
+}
+
+/* ---------- Diffuseurs ----------
+   Carte compacte : le détail (note, géo) est replié derrière un tap.
+   Avec le filtre « tous pays », une course peut lister 20 sources —
+   la version dépliée en permanence était un mur de texte. */
+
+.src { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.src.owned { border-color: rgba(0,210,106,.35); }
+.src.pref  { border-color: rgba(225,6,0,.4); }
+.src.pinned { border-color: var(--red); background: var(--surface-2); }
+
+.src-main { display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px 14px; text-align: left; }
+.src-id { min-width: 0; }
+.src-name { font-family: var(--display); font-weight: 700; font-size: 17px; line-height: 1.15; }
+.src-where { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.src-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
+.src-more { margin-left: auto; flex: none; color: var(--muted); font-size: 12px; transition: transform .2s; }
+.src[data-open="1"] .src-more { transform: rotate(90deg); }
+
+.src-detail { padding: 0 14px 12px; border-top: 1px solid var(--line); margin-top: -1px; padding-top: 12px; }
+.src-scope { font-size: 12.5px; }
+.src-geo { font-size: 11.5px; color: var(--warn); margin-top: 6px; }
+.src-note { font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+
+.src-actions { display: flex; gap: 8px; padding: 0 14px 12px; }
+.src-actions > * {
+  flex: 1; text-align: center; padding: 9px 10px; border-radius: 9px;
+  font-size: 13px; font-weight: 600;
+  border: 1px solid var(--line); background: var(--surface-2);
+}
+.src-actions .go { background: var(--red); border-color: var(--red); color: #fff; }
+.src-actions .go:hover { background: #c60500; }
+
+.urlbox {
+  margin-top: 12px; padding: 11px 12px;
+  background: rgba(0,0,0,.28); border: 1px solid var(--line); border-radius: 10px;
+}
+.urlbox-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.urledit { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.urledit input {
+  width: 100%; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 9px;
+  padding: 10px 11px; font-family: var(--mono); font-size: 12.5px;
+}
+
+/* ---------- Classements ----------
+   Une seule mesure (les points), donc une seule teinte : l'identité de
+   l'écurie est portée par le texte, pas par la couleur. Onze teintes
+   catégorielles seraient indistinguables et invalidables. */
+
+.rank { display: flex; flex-direction: column; }
+.rank-row {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center; gap: 10px;
+  padding: 9px 0;
+}
+.rank-row + .rank-row { border-top: 1px solid rgba(43,43,58,.7); }
+.rank-pos {
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  color: var(--muted); font-variant-numeric: tabular-nums; text-align: right;
+}
+.rank-row.lead .rank-pos { color: var(--red); }
+.rank-who { min-width: 0; }
+.rank-name { font-family: var(--display); font-weight: 700; font-size: 16px; line-height: 1.15; }
+.rank-team { font-size: 11.5px; color: var(--muted); }
+.rank-val {
+  font-family: var(--mono); font-size: 15px; font-weight: 700;
+  font-variant-numeric: tabular-nums; text-align: right;
+}
+.rank-sub { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: right; }
+
+/* Barre de magnitude : extrémité arrondie, ancrée à la ligne de base,
+   2px de fond entre la barre et la piste. */
+.track { grid-column: 2 / 4; height: 4px; background: rgba(148,148,166,.16); border-radius: 2px; margin-top: 2px; }
+.track > span { display: block; height: 100%; background: var(--red); border-radius: 2px; }
+.rank-row:not(.lead) .track > span { background: #7A3B38; }
+
+.podium { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.podium + .podium { border-top: 1px solid rgba(43,43,58,.7); }
+.podium-rd { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--muted); width: 26px; flex: none; }
+.podium-gp { font-size: 13px; min-width: 0; }
+.podium-win { margin-left: auto; text-align: right; }
+.podium-drv { font-family: var(--display); font-weight: 700; font-size: 15px; }
+.podium-meta { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+
+/* ---------- Réglages ---------- */
+
+.field { display: flex; flex-direction: column; gap: 7px; }
+.field > label { font-size: 12px; font-weight: 600; color: var(--muted); }
+select {
+  width: 100%; background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 12px; font: inherit; font-size: 15px; appearance: none;
+}
+select.compact { padding: 8px 10px; font-size: 13px; }
+
+.checks { display: flex; flex-direction: column; gap: 2px; }
+.check { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border-radius: 10px; text-align: left; font-size: 14.5px; }
+.check:hover { background: rgba(255,255,255,.035); }
+.box {
+  width: 19px; height: 19px; flex: none; border: 1.5px solid var(--line);
+  border-radius: 5px; display: grid; place-items: center; font-size: 11px; color: transparent;
+}
+.check[aria-pressed="true"] .box { background: var(--red); border-color: var(--red); color: #fff; }
+
+.btn {
+  display: block; width: 100%; text-align: center;
+  padding: 11px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface-2);
+  font-size: 14px; font-weight: 600;
+}
+.btn:hover { background: #262634; }
+
+.prose { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+.prose strong { color: var(--text); font-weight: 600; }
+.prose ol, .prose ul { margin: 8px 0 0; padding-left: 18px; }
+.prose li { margin-bottom: 4px; }
+
+.notice {
+  display: flex; gap: 10px; border-radius: 11px; padding: 12px 13px;
+  font-size: 12.5px; line-height: 1.45;
+  background: rgba(255,176,32,.09); border: 1px solid rgba(255,176,32,.26); color: var(--warn);
+}
+.notice.ok { background: rgba(0,210,106,.08); border-color: rgba(0,210,106,.26); color: var(--live); }
+
+.stack-s { display: flex; flex-direction: column; gap: 8px; }
+.stack-l { display: flex; flex-direction: column; gap: 22px; }
+.sec     { display: flex; flex-direction: column; gap: 10px; }
+.empty   { text-align: center; padding: 46px 20px; color: var(--muted); font-size: 13.5px; }
+.grouphead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.groupcount { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%) translateY(20px);
+  bottom: calc(var(--tabbar) + 90px); z-index: 60;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 600;
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="wordmark">F1&nbsp;<span>COMPANION</span></div>
+    <div class="zone" id="zone"></div>
+  </header>
+
+  <section class="screen on" id="s-live"></section>
+  <section class="screen" id="s-cal"></section>
+  <section class="screen" id="s-stats"></section>
+  <section class="screen" id="s-set"></section>
+</div>
+
+<div class="watchbar" id="watchbar"></div>
+
+<nav class="tabbar" role="tablist" aria-label="Navigation principale">
+  <button role="tab" aria-selected="true"  data-tab="live"><span class="glyph">◉</span>En direct</button>
+  <button role="tab" aria-selected="false" data-tab="cal"><span class="glyph">▤</span>Calendrier</button>
+  <button role="tab" aria-selected="false" data-tab="stats"><span class="glyph">▦</span>Classements</button>
+  <button role="tab" aria-selected="false" data-tab="set"><span class="glyph">⚙</span>Réglages</button>
+</nav>
+
+<div class="sheet-bg" id="sheet-bg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Détail de la séance"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ==================================================================
+   CALENDRIER 2026 — API Jolpica-F1, relevé le 02/09/2026, embarqué.
+   Heures en UTC, converties à l'affichage.
+   ================================================================== */
+
+const SEASON = 2026;
+const SNAPSHOT = "2026-09-02";
+const STANDINGS_AFTER = 12;   // dernière manche prise en compte
+
+const ROUNDS = [
+  { r:1,  name:"Grand Prix d'Australie",     circuit:"Albert Park",             city:"Melbourne",    cc:"AU", tz:"Australia/Melbourne",
+    s:{ fp1:"2026-03-06T01:30Z", fp2:"2026-03-06T05:00Z", fp3:"2026-03-07T01:30Z", q:"2026-03-07T05:00Z", race:"2026-03-08T04:00Z" } },
+  { r:2,  name:"Grand Prix de Chine",        circuit:"Shanghai International",  city:"Shanghai",     cc:"CN", tz:"Asia/Shanghai",
+    s:{ fp1:"2026-03-13T03:30Z", sq:"2026-03-13T07:30Z", sprint:"2026-03-14T03:00Z", q:"2026-03-14T07:00Z", race:"2026-03-15T07:00Z" } },
+  { r:3,  name:"Grand Prix du Japon",        circuit:"Suzuka",                  city:"Suzuka",       cc:"JP", tz:"Asia/Tokyo",
+    s:{ fp1:"2026-03-27T02:30Z", fp2:"2026-03-27T06:00Z", fp3:"2026-03-28T02:30Z", q:"2026-03-28T06:00Z", race:"2026-03-29T05:00Z" } },
+  { r:4,  name:"Grand Prix de Miami",        circuit:"Miami International",     city:"Miami",        cc:"US", tz:"America/New_York",
+    s:{ fp1:"2026-05-01T16:00Z", sq:"2026-05-01T20:30Z", sprint:"2026-05-02T16:00Z", q:"2026-05-02T20:00Z", race:"2026-05-03T20:00Z" } },
+  { r:5,  name:"Grand Prix du Canada",       circuit:"Gilles-Villeneuve",       city:"Montréal",     cc:"CA", tz:"America/Toronto",
+    s:{ fp1:"2026-05-22T16:30Z", sq:"2026-05-22T20:30Z", sprint:"2026-05-23T16:00Z", q:"2026-05-23T20:00Z", race:"2026-05-24T20:00Z" } },
+  { r:6,  name:"Grand Prix de Monaco",       circuit:"Circuit de Monaco",       city:"Monte-Carlo",  cc:"MC", tz:"Europe/Monaco",
+    s:{ fp1:"2026-06-05T11:30Z", fp2:"2026-06-05T15:00Z", fp3:"2026-06-06T10:30Z", q:"2026-06-06T14:00Z", race:"2026-06-07T13:00Z" } },
+  { r:7,  name:"Grand Prix de Barcelone",    circuit:"Barcelona-Catalunya",     city:"Barcelone",    cc:"ES", tz:"Europe/Madrid",
+    s:{ fp1:"2026-06-12T11:30Z", fp2:"2026-06-12T15:00Z", fp3:"2026-06-13T10:30Z", q:"2026-06-13T14:00Z", race:"2026-06-14T13:00Z" } },
+  { r:8,  name:"Grand Prix d'Autriche",      circuit:"Red Bull Ring",           city:"Spielberg",    cc:"AT", tz:"Europe/Vienna",
+    s:{ fp1:"2026-06-26T11:30Z", fp2:"2026-06-26T15:00Z", fp3:"2026-06-27T10:30Z", q:"2026-06-27T14:00Z", race:"2026-06-28T13:00Z" } },
+  { r:9,  name:"Grand Prix de Grande-Bretagne", circuit:"Silverstone",          city:"Silverstone",  cc:"GB", tz:"Europe/London",
+    s:{ fp1:"2026-07-03T11:30Z", sq:"2026-07-03T15:30Z", sprint:"2026-07-04T11:00Z", q:"2026-07-04T15:00Z", race:"2026-07-05T14:00Z" } },
+  { r:10, name:"Grand Prix de Belgique",     circuit:"Spa-Francorchamps",       city:"Spa",          cc:"BE", tz:"Europe/Brussels",
+    s:{ fp1:"2026-07-17T11:30Z", fp2:"2026-07-17T15:00Z", fp3:"2026-07-18T10:30Z", q:"2026-07-18T14:00Z", race:"2026-07-19T13:00Z" } },
+  { r:11, name:"Grand Prix de Hongrie",      circuit:"Hungaroring",             city:"Budapest",     cc:"HU", tz:"Europe/Budapest",
+    s:{ fp1:"2026-07-24T11:30Z", fp2:"2026-07-24T15:00Z", fp3:"2026-07-25T10:30Z", q:"2026-07-25T14:00Z", race:"2026-07-26T13:00Z" } },
+  { r:12, name:"Grand Prix des Pays-Bas",    circuit:"Zandvoort",               city:"Zandvoort",    cc:"NL", tz:"Europe/Amsterdam",
+    s:{ fp1:"2026-08-21T10:30Z", sq:"2026-08-21T14:30Z", sprint:"2026-08-22T10:00Z", q:"2026-08-22T14:00Z", race:"2026-08-23T13:00Z" } },
+  { r:13, name:"Grand Prix d'Italie",        circuit:"Monza",                   city:"Monza",        cc:"IT", tz:"Europe/Rome",
+    s:{ fp1:"2026-09-04T10:30Z", fp2:"2026-09-04T14:00Z", fp3:"2026-09-05T10:30Z", q:"2026-09-05T14:00Z", race:"2026-09-06T13:00Z" } },
+  { r:14, name:"Grand Prix d'Espagne",       circuit:"Madring",                 city:"Madrid",       cc:"ES", tz:"Europe/Madrid",
+    s:{ fp1:"2026-09-11T11:30Z", fp2:"2026-09-11T15:00Z", fp3:"2026-09-12T10:30Z", q:"2026-09-12T14:00Z", race:"2026-09-13T13:00Z" } },
+  { r:15, name:"Grand Prix d'Azerbaïdjan",   circuit:"Baku City",               city:"Bakou",        cc:"AZ", tz:"Asia/Baku",
+    s:{ fp1:"2026-09-24T08:30Z", fp2:"2026-09-24T12:00Z", fp3:"2026-09-25T08:30Z", q:"2026-09-25T12:00Z", race:"2026-09-26T11:00Z" } },
+  { r:16, name:"Grand Prix de Malaisie",     circuit:"Sepang International",    city:"Kuala Lumpur", cc:"MY", tz:"Asia/Kuala_Lumpur", suspect:true,
+    s:{ fp1:"2026-10-02T04:30Z", fp2:"2026-10-02T08:00Z", fp3:"2026-10-03T04:30Z", q:"2026-10-03T08:00Z", race:"2026-10-04T07:00Z" } },
+  { r:17, name:"Grand Prix de Singapour",    circuit:"Marina Bay",              city:"Marina Bay",   cc:"SG", tz:"Asia/Singapore",
+    s:{ fp1:"2026-10-09T08:30Z", sq:"2026-10-09T12:30Z", sprint:"2026-10-10T09:00Z", q:"2026-10-10T13:00Z", race:"2026-10-11T12:00Z" } },
+  { r:18, name:"Grand Prix des États-Unis",  circuit:"Circuit of the Americas", city:"Austin",       cc:"US", tz:"America/Chicago",
+    s:{ fp1:"2026-10-23T17:30Z", fp2:"2026-10-23T21:00Z", fp3:"2026-10-24T17:30Z", q:"2026-10-24T21:00Z", race:"2026-10-25T20:00Z" } },
+  { r:19, name:"Grand Prix de Mexico",       circuit:"Hermanos Rodríguez",      city:"Mexico",       cc:"MX", tz:"America/Mexico_City",
+    s:{ fp1:"2026-10-30T18:30Z", fp2:"2026-10-30T22:00Z", fp3:"2026-10-31T17:30Z", q:"2026-10-31T21:00Z", race:"2026-11-01T20:00Z" } },
+  { r:20, name:"Grand Prix du Brésil",       circuit:"José Carlos Pace",        city:"São Paulo",    cc:"BR", tz:"America/Sao_Paulo",
+    s:{ fp1:"2026-11-06T15:30Z", fp2:"2026-11-06T19:00Z", fp3:"2026-11-07T14:30Z", q:"2026-11-07T18:00Z", race:"2026-11-08T17:00Z" } },
+  { r:21, name:"Grand Prix de Las Vegas",    circuit:"Las Vegas Strip",         city:"Las Vegas",    cc:"US", tz:"America/Los_Angeles",
+    s:{ fp1:"2026-11-20T00:30Z", fp2:"2026-11-20T04:00Z", fp3:"2026-11-21T00:30Z", q:"2026-11-21T04:00Z", race:"2026-11-22T04:00Z" } },
+  { r:22, name:"Grand Prix du Qatar",        circuit:"Losail International",    city:"Lusail",       cc:"QA", tz:"Asia/Qatar",
+    s:{ fp1:"2026-11-27T13:30Z", fp2:"2026-11-27T17:00Z", fp3:"2026-11-28T14:30Z", q:"2026-11-28T18:00Z", race:"2026-11-29T16:00Z" } },
+  { r:23, name:"Grand Prix d'Abu Dhabi",     circuit:"Yas Marina",              city:"Abu Dhabi",    cc:"AE", tz:"Asia/Dubai",
+    s:{ fp1:"2026-12-04T09:30Z", fp2:"2026-12-04T13:00Z", fp3:"2026-12-05T10:30Z", q:"2026-12-05T14:00Z", race:"2026-12-06T13:00Z" } }
+];
+
+const KINDS = {
+  fp1:    { tag:"EL1",     long:"Essais libres 1",       mins:60,  key:false },
+  fp2:    { tag:"EL2",     long:"Essais libres 2",       mins:60,  key:false },
+  sq:     { tag:"SQ",      long:"Qualifications Sprint", mins:45,  key:false },
+  fp3:    { tag:"EL3",     long:"Essais libres 3",       mins:60,  key:false },
+  sprint: { tag:"SPRINT",  long:"Course Sprint",         mins:60,  key:true  },
+  q:      { tag:"QUALIFS", long:"Qualifications",        mins:60,  key:true  },
+  race:   { tag:"COURSE",  long:"Grand Prix",            mins:120, key:true  }
+};
+const ORDER = ["fp1","fp2","sq","fp3","sprint","q","race"];
+
+/* ==================================================================
+   CLASSEMENTS — après la manche 12 (GP des Pays-Bas).
+   Source : API Jolpica-F1, relevé le 02/09/2026.
+
+   NOTE : l'API sert le classement constructeurs à une manche
+   antérieure au classement pilotes. Plutôt que d'afficher deux tables
+   qui ne concordent pas, les points constructeurs sont RECALCULÉS ici
+   en additionnant ceux de leurs pilotes. C'est exact sauf quand un
+   pilote change d'écurie en cours de saison — l'écurie RB compte trois
+   pilotes cette saison, sa ligne est donc à prendre avec prudence.
+   ================================================================== */
+
+const DRIVERS = [
+  { p:1,  pts:242, w:6, code:"ANT", n:12, first:"Andrea Kimi", last:"Antonelli",  nat:"IT", team:"Mercedes" },
+  { p:2,  pts:183, w:2, code:"RUS", n:63, first:"George",      last:"Russell",    nat:"GB", team:"Mercedes" },
+  { p:3,  pts:183, w:1, code:"HAM", n:44, first:"Lewis",       last:"Hamilton",   nat:"GB", team:"Ferrari" },
+  { p:4,  pts:159, w:2, code:"NOR", n:1,  first:"Lando",       last:"Norris",     nat:"GB", team:"McLaren" },
+  { p:5,  pts:155, w:1, code:"LEC", n:16, first:"Charles",     last:"Leclerc",    nat:"MC", team:"Ferrari" },
+  { p:6,  pts:112, w:0, code:"VER", n:3,  first:"Max",         last:"Verstappen", nat:"NL", team:"Red Bull" },
+  { p:7,  pts:104, w:0, code:"PIA", n:81, first:"Oscar",       last:"Piastri",    nat:"AU", team:"McLaren" },
+  { p:8,  pts:68,  w:0, code:"HAD", n:6,  first:"Isack",       last:"Hadjar",     nat:"FR", team:"Red Bull" },
+  { p:9,  pts:49,  w:0, code:"LAW", n:30, first:"Liam",        last:"Lawson",     nat:"NZ", team:"RB" },
+  { p:10, pts:44,  w:0, code:"GAS", n:10, first:"Pierre",      last:"Gasly",      nat:"FR", team:"Alpine" },
+  { p:11, pts:23,  w:0, code:"LIN", n:41, first:"Arvid",       last:"Lindblad",   nat:"GB", team:"RB" },
+  { p:12, pts:19,  w:0, code:"COL", n:43, first:"Franco",      last:"Colapinto",  nat:"AR", team:"Alpine" },
+  { p:13, pts:18,  w:0, code:"BEA", n:87, first:"Oliver",      last:"Bearman",    nat:"GB", team:"Haas" },
+  { p:14, pts:10,  w:0, code:"BOR", n:5,  first:"Gabriel",     last:"Bortoleto",  nat:"BR", team:"Audi" },
+  { p:15, pts:6,   w:0, code:"HUL", n:27, first:"Nico",        last:"Hülkenberg", nat:"DE", team:"Audi" },
+  { p:16, pts:6,   w:0, code:"SAI", n:55, first:"Carlos",      last:"Sainz",      nat:"ES", team:"Williams" },
+  { p:17, pts:5,   w:0, code:"ALB", n:23, first:"Alexander",   last:"Albon",      nat:"TH", team:"Williams" },
+  { p:18, pts:3,   w:0, code:"OCO", n:31, first:"Esteban",     last:"Ocon",       nat:"FR", team:"Haas" },
+  { p:19, pts:3,   w:0, code:"ALO", n:14, first:"Fernando",    last:"Alonso",     nat:"ES", team:"Aston Martin" },
+  { p:20, pts:0,   w:0, code:"TSU", n:22, first:"Yuki",        last:"Tsunoda",    nat:"JP", team:"RB" },
+  { p:21, pts:0,   w:0, code:"STR", n:18, first:"Lance",       last:"Stroll",     nat:"CA", team:"Aston Martin" },
+  { p:22, pts:0,   w:0, code:"BOT", n:77, first:"Valtteri",    last:"Bottas",     nat:"FI", team:"Cadillac" },
+  { p:23, pts:0,   w:0, code:"PER", n:11, first:"Sergio",      last:"Pérez",      nat:"MX", team:"Cadillac" }
+];
+
+/** Vainqueurs et poleman par manche disputée. */
+const RESULTS = [
+  { r:1,  win:"RUS", winName:"Russell",   winTeam:"Mercedes", time:"1:23:06.801", pole:"RUS" },
+  { r:2,  win:"ANT", winName:"Antonelli", winTeam:"Mercedes", time:"1:33:15.607", pole:"ANT" },
+  { r:3,  win:"ANT", winName:"Antonelli", winTeam:"Mercedes", time:"1:28:03.403", pole:"ANT" },
+  { r:4,  win:"ANT", winName:"Antonelli", winTeam:"Mercedes", time:"1:33:19.273", pole:"ANT" },
+  { r:5,  win:"ANT", winName:"Antonelli", winTeam:"Mercedes", time:"1:28:15.758", pole:"RUS" },
+  { r:6,  win:"ANT", winName:"Antonelli", winTeam:"Mercedes", time:"2:23:31.243", pole:"ANT" },
+  { r:7,  win:"HAM", winName:"Hamilton",  winTeam:"Ferrari",  time:"1:32:28.105", pole:"RUS" },
+  { r:8,  win:"RUS", winName:"Russell",   winTeam:"Mercedes", time:"1:26:37.979", pole:"RUS" },
+  { r:9,  win:"LEC", winName:"Leclerc",   winTeam:"Ferrari",  time:"1:27:11.335", pole:"ANT" },
+  { r:10, win:"ANT", winName:"Antonelli", winTeam:"Mercedes", time:"1:24:42.479", pole:"ANT" },
+  { r:11, win:"NOR", winName:"Norris",    winTeam:"McLaren",  time:"1:39:56.180", pole:null  },
+  { r:12, win:"NOR", winName:"Norris",    winTeam:"McLaren",  time:"2:04:44.859", pole:null  }
+];
+
+/** Constructeurs recalculés à partir des points pilotes. */
+function constructorTable() {
+  const map = new Map();
+  for (const d of DRIVERS) {
+    const t = map.get(d.team) || { team: d.team, pts: 0, w: 0, drivers: [] };
+    t.pts += d.pts; t.w += d.w; t.drivers.push(d.code);
+    map.set(d.team, t);
+  }
+  return [...map.values()].sort((a, b) => b.pts - a.pts).map((t, i) => Object.assign(t, { p: i + 1 }));
+}
+
+/* ==================================================================
+   DIFFUSEURS
+   Source : liste des diffuseurs F1 par pays de Wikipédia, 02/09/2026.
+   Les entrées gratuites sont presque toutes géobloquées à leur
+   territoire ; le champ `geo` est affiché systématiquement.
+   ================================================================== */
+
+const ALL = ["fp1","fp2","fp3","sq","sprint","q","race"];
+const Q_RACE = ["q","race"];
+const RACE = ["race"];
+const SPRINT_ROUNDS = [2,4,5,9,12,17];
+
+const SOURCES = [
+  { id:"lu-rtl", cc:"LU", name:"RTL", kind:"free", lang:"de", covers:ALL, rounds:null, q:1, qSrc:false, conf:"ok", geo:"Luxembourg",
+    scope:"Toutes les séances, toute la saison", url:"https://www.rtl.lu/sport",
+    note:"La seule chaîne en clair d'Europe à diffuser l'intégralité des séances. Droits jusqu'en 2026. Commentaire en luxembourgeois / allemand — à confirmer." },
+  { id:"ch-rts", cc:"CH", name:"RTS Deux", kind:"free", lang:"fr", covers:Q_RACE, rounds:null, q:1, qSrc:false, conf:"ok", geo:"Suisse",
+    scope:"Qualifications et course, toute la saison", url:"https://www.rts.ch/sport/",
+    note:"Service public suisse romand (SRG SSR). Commentaire en français." },
+  { id:"ch-srf", cc:"CH", name:"SRF zwei", kind:"free", lang:"de", covers:Q_RACE, rounds:null, q:1, qSrc:false, conf:"ok", geo:"Suisse",
+    scope:"Qualifications et course, toute la saison", url:"https://www.srf.ch/sport", note:"Service public suisse alémanique (SRG SSR)." },
+  { id:"ch-rsi", cc:"CH", name:"RSI La 2", kind:"free", lang:"it", covers:Q_RACE, rounds:null, q:1, qSrc:false, conf:"ok", geo:"Suisse",
+    scope:"Qualifications et course, toute la saison", url:"https://www.rsi.ch/sport", note:"Service public suisse italophone (SRG SSR)." },
+  { id:"be-tipik", cc:"BE", name:"Tipik", kind:"free", lang:"fr", covers:ALL, rounds:null, q:1, qSrc:false, conf:"likely", geo:"Belgique",
+    scope:"GP de Belgique : toutes les séances · autres manches : couverture partielle", url:"https://www.rtbf.be/tipik",
+    note:"Chaîne de la RTBF. Essais, qualifs et course pour le GP de Belgique ; certaines autres courses en direct — la liste change selon les saisons." },
+  { id:"be-vrt", cc:"BE", name:"VRT", kind:"free", lang:"nl", covers:RACE, rounds:[10], q:1, qSrc:false, conf:"ok", geo:"Belgique",
+    scope:"GP de Belgique en direct uniquement", url:"https://www.vrt.be/vrtnu/", note:"Service public flamand. Résumés des autres courses." },
+  { id:"at-orf", cc:"AT", name:"ORF", kind:"free", lang:"de", covers:RACE, rounds:null, q:1, qSrc:false, conf:"check", geo:"Autriche",
+    scope:"12 courses en direct par saison", url:"https://sport.orf.at/",
+    note:"Service public autrichien, droits jusqu'en 2026. La liste des 12 courses n'est pas publiée dans ma source — vérifie avant de compter dessus." },
+  { id:"de-rtl", cc:"DE", name:"RTL", kind:"free", lang:"de", covers:RACE, rounds:null, q:1, qSrc:false, conf:"check", geo:"Allemagne",
+    scope:"7 courses en clair par saison", url:"https://www.rtl.de/",
+    note:"La liste publiée (Chine, Émilie-Romagne, Espagne, Canada, Belgique, Pays-Bas, Las Vegas) cite l'Émilie-Romagne, absente du calendrier 2026 — probablement périmée." },
+  { id:"nl-nos", cc:"NL", name:"NOS", kind:"free", lang:"nl", covers:RACE, rounds:[12], q:1, qSrc:false, conf:"ok", geo:"Pays-Bas",
+    scope:"GP des Pays-Bas en direct uniquement", url:"https://nos.nl/sport/formule-1", note:"Service public néerlandais. Résumés des autres courses." },
+  { id:"nl-viaplaytv", cc:"NL", name:"Viaplay TV", kind:"free", lang:"nl", covers:RACE, rounds:null, q:2, qSrc:true, conf:"likely", geo:"Pays-Bas",
+    scope:"Quelques courses en direct par saison", url:"https://viaplay.nl/",
+    note:"Chaîne gratuite du groupe Viaplay, distincte de l'abonnement. Droits jusqu'en 2029. Liste des courses à vérifier." },
+  { id:"it-tv8", cc:"IT", name:"TV8", kind:"free", lang:"it", covers:["sprint","race"], rounds:null, q:1, qSrc:false, conf:"ok", geo:"Italie",
+    scope:"Tous les Sprints en direct · GP d'Italie en direct", url:"https://tv8.it/",
+    note:"Chaîne en clair du groupe Sky. Seul diffuseur gratuit à passer l'intégralité des courses Sprint — utile pour les 6 week-ends Sprint." },
+  { id:"es-mediaset", cc:"ES", name:"Mediaset", kind:"free", lang:"es", covers:RACE, rounds:[7,14], q:1, qSrc:false, conf:"check", geo:"Espagne",
+    scope:"GP d'Espagne uniquement", url:"https://www.telecinco.es/deportes/",
+    note:"Deux manches en Espagne en 2026 — Barcelone et Madrid. Ma source ne dit pas laquelle est en clair : les deux sont signalées." },
+  { id:"gb-c4", cc:"GB", name:"Channel 4", kind:"free", lang:"en", covers:RACE, rounds:[9], q:1, qSrc:false, conf:"ok", geo:"Royaume-Uni",
+    scope:"GP de Grande-Bretagne en direct uniquement", url:"https://www.channel4.com/categories/sport",
+    note:"Accord Sky / Channel 4 jusqu'en 2026. Les autres courses sont en résumé, pas en direct." },
+  { id:"fr-canalclair", cc:"FR", name:"CANAL+ en clair", kind:"free", lang:"fr", covers:RACE, rounds:null, q:1, qSrc:false, conf:"check", geo:"France",
+    scope:"Quelques courses en clair par saison", url:"https://www.canalplus.com/sport/formule-1/",
+    note:"La liste change chaque saison. Vérifie le calendrier officiel CANAL+." },
+  { id:"cn-cctv", cc:"CN", name:"CCTV", kind:"free", lang:"zh", covers:Q_RACE, rounds:null, q:1, qSrc:false, conf:"likely", geo:"Chine",
+    scope:"Qualifications et course, toute la saison", url:"https://tv.cctv.com/",
+    note:"Diffusion nationale gratuite, parfois en différé. C'est l'option gratuite la plus large d'Asie." },
+  { id:"sg-mediacorp", cc:"SG", name:"Mediacorp / meWATCH", kind:"free", lang:"en", covers:ALL, rounds:[17], q:1, qSrc:false, conf:"ok", geo:"Singapour",
+    scope:"GP de Singapour uniquement — toutes les séances", url:"https://www.mewatch.sg/", note:"Une seule manche, mais couverture complète du week-end." },
+  { id:"jp-fujitv", cc:"JP", name:"Fuji TV", kind:"free", lang:"ja", covers:RACE, rounds:null, q:1, qSrc:false, conf:"likely", geo:"Japon",
+    scope:"Résumés uniquement — pas de direct", url:"https://www.fujitv.co.jp/",
+    note:"Jusqu'à cinq manches par saison, en différé. Le direct est sur Fuji TV Next, payant." },
+
+  { id:"int-f1tv", cc:"INT", name:"F1 TV Pro", kind:"pay", lang:"en", covers:ALL, rounds:null, q:2, qSrc:false, conf:"likely", geo:"Variable selon le pays",
+    scope:"Toutes les séances, multi-caméras, radios équipes", url:"https://f1tv.formula1.com/",
+    note:"Service officiel de la F1. Indisponible en direct là où un diffuseur détient l'exclusivité, le Royaume-Uni notamment." },
+  { id:"fr-canalplus", cc:"FR", name:"CANAL+", kind:"pay", lang:"fr", covers:ALL, rounds:null, q:1, qSrc:false, conf:"ok", geo:"France · portabilité UE",
+    scope:"Toutes les séances, toute la saison", url:"https://www.canalplus.com/sport/formule-1/",
+    note:"Détenteur exclusif en France jusqu'en 2029. Règlement UE 2017/1128 : accessible lors d'un séjour temporaire dans un autre État membre." },
+  { id:"gb-sky", cc:"GB", name:"Sky Sports F1", kind:"pay", lang:"en", covers:ALL, rounds:null, q:3, qSrc:true, conf:"ok", geo:"Royaume-Uni",
+    scope:"Toutes les séances, toute la saison", url:"https://www.skysports.com/f1", note:"Ultra HD. Accès via Sky Go ou NOW. Droits jusqu'en 2027." },
+  { id:"gb-now", cc:"GB", name:"NOW Sports", kind:"pay", lang:"en", covers:ALL, rounds:null, q:2, qSrc:false, conf:"likely", geo:"Royaume-Uni",
+    scope:"Toutes les séances, toute la saison", url:"https://www.nowtv.com/gb/sports",
+    note:"Flux Sky sans engagement — pass journée ou mensuel. Définition généralement inférieure à Sky Q." },
+  { id:"eu-sky", cc:"MULTI", ccs:["DE","IT","AT","CH"], name:"Sky Sport F1", kind:"pay", lang:"de", covers:ALL, rounds:null, q:3, qSrc:true, conf:"ok",
+    geo:"Allemagne, Italie, Autriche, Suisse", scope:"Toutes les séances, toute la saison", url:"https://www.sky.de/sport/formel-1",
+    note:"Ultra HD, droits jusqu'en 2027. Commentaire allemand ou italien selon le marché." },
+  { id:"be-playsports", cc:"BE", name:"Play Sports", kind:"pay", lang:"nl", covers:ALL, rounds:null, q:2, qSrc:true, conf:"ok", geo:"Belgique",
+    scope:"Toutes les séances, toute la saison", url:"https://www.playsports.be/", note:"Offre sportive Telenet, HD. Droits jusqu'en 2027." },
+  { id:"nl-viaplay", cc:"NL", name:"Viaplay", kind:"pay", lang:"nl", covers:ALL, rounds:null, q:2, qSrc:true, conf:"ok", geo:"Pays-Bas",
+    scope:"Toutes les séances, toute la saison", url:"https://viaplay.nl/", note:"HD, droits jusqu'en 2029." },
+  { id:"es-dazn", cc:"ES", name:"DAZN", kind:"pay", lang:"es", covers:ALL, rounds:null, q:1, qSrc:false, conf:"ok", geo:"Espagne",
+    scope:"Toutes les séances, toute la saison", url:"https://www.dazn.com/es-ES", note:"Droits jusqu'en 2026." },
+  { id:"at-servus", cc:"AT", name:"ServusTV", kind:"pay", lang:"de", covers:RACE, rounds:null, q:1, qSrc:false, conf:"likely", geo:"Autriche",
+    scope:"12 courses en direct par saison", url:"https://www.servustv.com/sport/", note:"Se partage la saison avec ORF. Droits jusqu'en 2026." },
+  { id:"asia-bein", cc:"MULTI", ccs:["SG","MY","TH","ID","PH","HK"], name:"beIN Sports", kind:"pay", lang:"en", covers:ALL, rounds:null, q:2, qSrc:true, conf:"ok",
+    geo:"Singapour, Malaisie, Thaïlande, Indonésie, Philippines, Hong Kong", scope:"Toutes les séances, toute la saison", url:"https://www.beinsports.com/",
+    note:"HD 1080i, droits jusqu'en 2030 sur l'essentiel de l'Asie du Sud-Est. C'est de fait le diffuseur de référence de la zone." },
+  { id:"jp-fujinext", cc:"JP", name:"Fuji TV Next", kind:"pay", lang:"ja", covers:ALL, rounds:null, q:2, qSrc:true, conf:"ok", geo:"Japon",
+    scope:"Toutes les séances, toute la saison", url:"https://www.fujitv.co.jp/", note:"HD. Droits jusqu'en 2030." },
+  { id:"in-fancode", cc:"IN", name:"FanCode", kind:"pay", lang:"en", covers:ALL, rounds:null, q:1, qSrc:false, conf:"ok", geo:"Inde",
+    scope:"Toutes les séances, toute la saison", url:"https://www.fancode.com/", note:"Droits jusqu'en 2028." },
+  { id:"kr-coupang", cc:"KR", name:"Coupang Play", kind:"pay", lang:"ko", covers:ALL, rounds:null, q:1, qSrc:false, conf:"ok", geo:"Corée du Sud",
+    scope:"Toutes les séances, toute la saison", url:"https://www.coupangplay.com/", note:"Droits pluriannuels à partir de 2026." }
+];
+
+/* ------------------------------------------------------------------
+   URLS DE DIRECT — candidates, NON VÉRIFIÉES.
+
+   Les `url` ci-dessus sont des pages d'accueil qui obligent à chercher
+   le flux. Ces `LIVE_URLS` visent la page du player en direct.
+
+   Honnêteté sur leur statut : je n'ai PAS pu les tester. Les sites de
+   diffuseurs bloquent l'accès automatisé (403 sur le premier essai).
+   Ce sont donc les chemins habituels de chaque plateforme, pas des
+   liens confirmés. Certains fonctionneront, d'autres tomberont sur une
+   404 ou une redirection.
+
+   D'où le mécanisme de correction dans l'app : au premier test, si le
+   lien ne tombe pas juste, tu colles la bonne URL et elle remplace
+   celle-ci définitivement. La liste se corrige par l'usage.
+   ------------------------------------------------------------------ */
+const LIVE_URLS = {
+  "ch-rts":        "https://www.rts.ch/play/tv/direct",
+  "ch-srf":        "https://www.srf.ch/play/tv/live",
+  "ch-rsi":        "https://www.rsi.ch/play/tv/diretta",
+  "be-tipik":      "https://auvio.rtbf.be/direct",
+  "be-vrt":        "https://www.vrt.be/vrtmax/live/",
+  "nl-nos":        "https://nos.nl/live",
+  "it-tv8":        "https://www.tv8.it/diretta",
+  "at-orf":        "https://on.orf.at/",
+  "de-rtl":        "https://www.rtlplus.com/live-tv",
+  "lu-rtl":        "https://www.rtl.lu/tele/live",
+  "cn-cctv":       "https://tv.cctv.com/live/",
+  "sg-mediacorp":  "https://www.mewatch.sg/channel/Channel-5-1",
+  "jp-fujitv":     "https://www.fujitv.co.jp/f1/",
+  "es-mediaset":   "https://www.mitele.es/directo/telecinco",
+  "gb-c4":         "https://www.channel4.com/now",
+  "fr-canalclair": "https://www.canalplus.com/live/",
+  "fr-canalplus":  "https://www.canalplus.com/live/",
+  "int-f1tv":      "https://f1tv.formula1.com/",
+  "gb-sky":        "https://www.skysports.com/watch/sky-sports-f1",
+  "gb-now":        "https://www.nowtv.com/gb/watch/home",
+  "eu-sky":        "https://www.sky.de/live-tv",
+  "be-playsports": "https://www.playsports.be/live",
+  "nl-viaplay":    "https://viaplay.nl/",
+  "nl-viaplaytv":  "https://viaplay.nl/",
+  "es-dazn":       "https://www.dazn.com/home",
+  "at-servus":     "https://www.servustv.com/live/",
+  "asia-bein":     "https://www.beinsports.com/en-sg/watch/",
+  "jp-fujinext":   "https://www.fujitv.co.jp/",
+  "in-fancode":    "https://www.fancode.com/",
+  "kr-coupang":    "https://www.coupangplay.com/"
+};
+
+const COUNTRIES = [
+  { cc:"FR", name:"France" },      { cc:"BE", name:"Belgique" },   { cc:"CH", name:"Suisse" },
+  { cc:"LU", name:"Luxembourg" },  { cc:"GB", name:"Royaume-Uni" },{ cc:"DE", name:"Allemagne" },
+  { cc:"AT", name:"Autriche" },    { cc:"IT", name:"Italie" },     { cc:"ES", name:"Espagne" },
+  { cc:"NL", name:"Pays-Bas" },    { cc:"CN", name:"Chine" },      { cc:"JP", name:"Japon" },
+  { cc:"SG", name:"Singapour" },   { cc:"MY", name:"Malaisie" },   { cc:"TH", name:"Thaïlande" },
+  { cc:"ID", name:"Indonésie" },   { cc:"PH", name:"Philippines" },{ cc:"HK", name:"Hong Kong" },
+  { cc:"IN", name:"Inde" },        { cc:"KR", name:"Corée du Sud" }
+];
+
+const LANGS = { fr:"Français", en:"Anglais", de:"Allemand", nl:"Néerlandais", it:"Italien", es:"Espagnol", zh:"Chinois", ja:"Japonais", ko:"Coréen" };
+const QUALITY = { 3:"Ultra HD", 2:"HD 1080", 1:"HD" };
+const CONF = { ok:null, likely:"Probable", check:"À vérifier" };
+const SUBSCRIBABLE = ["fr-canalplus","int-f1tv","gb-sky","gb-now","eu-sky","be-playsports","nl-viaplay","es-dazn","asia-bein","jp-fujinext","in-fancode","kr-coupang"];
+
+/* ==================================================================
+   STOCKAGE
+   localStorage peut être indisponible (navigation privée stricte) ou
+   éphémère (Safari privé : il accepte l'écriture mais vide à la
+   fermeture). On teste l'écriture au démarrage et on le dit à
+   l'utilisateur plutôt que d'échouer en silence.
+   ================================================================== */
+
+const storageOK = (() => {
+  try {
+    localStorage.setItem("f1c.__t", "1");
+    const ok = localStorage.getItem("f1c.__t") === "1";
+    localStorage.removeItem("f1c.__t");
+    return ok;
+  } catch (e) { return false; }
+})();
+
+const store = {
+  get(k, d) { if (!storageOK) return d; try { const v = localStorage.getItem("f1c." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { if (!storageOK) return; try { localStorage.setItem("f1c." + k, JSON.stringify(v)); } catch (e) {} }
+};
+
+/** Réglages encodés dans le hash de l'URL : un lien permanent qui
+    survit à la navigation privée et se met en favori. */
+function readHashSettings() {
+  try {
+    const m = /[#&]s=([A-Za-z0-9_-]+)/.exec(location.hash || "");
+    if (!m) return null;
+    const json = atob(m[1].replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(decodeURIComponent(escape(json)));
+  } catch (e) { return null; }
+}
+
+function settingsLink() {
+  const payload = { c: state.country, l: state.lang, s: state.subs, u: state.customUrls };
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return location.origin + location.pathname + location.search + "#s=" + b64;
+}
+
+const hashCfg = readHashSettings();
+
+const state = {
+  tab:       "live",
+  country:   hashCfg?.c ?? store.get("country", "all"),
+  lang:      hashCfg?.l ?? store.get("lang", "all"),
+  subs:      hashCfg?.s ?? store.get("subs", []),
+  /* Corrections d'URL saisies par l'utilisateur, par id de diffuseur.
+     Elles priment sur LIVE_URLS et voyagent dans le lien de réglages. */
+  customUrls: hashCfg?.u ?? store.get("customUrls", {}),
+  editUrl:   null,
+  lastSrc:   store.get("lastSrc", null),
+  statsView: "drivers",
+  past:      false,
+  openRound: null,
+  openSrc:   null,
+  sheet:     null,
+  live:      false
+};
+
+/* ==================================================================
+   OUTILS
+   ================================================================== */
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+function flag(cc) {
+  if (!/^[A-Za-z]{2}$/.test(cc)) return "🏁";
+  return String.fromCodePoint(...[...cc.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+}
+const countryName = cc => (COUNTRIES.find(c => c.cc === cc) || {}).name || cc;
+
+function fmt(date, opts, tz) {
+  const o = Object.assign({}, opts);
+  if (tz) o.timeZone = tz;
+  return new Intl.DateTimeFormat("fr-FR", o).format(date);
+}
+const hhmm     = (d, tz) => fmt(d, { hour:"2-digit", minute:"2-digit" }, tz);
+const dayShort = (d, tz) => fmt(d, { weekday:"short", day:"numeric", month:"short" }, tz);
+const dayLong  = (d, tz) => fmt(d, { weekday:"long", day:"numeric", month:"long" }, tz);
+
+function allSessions() {
+  const out = [];
+  for (const rd of ROUNDS) {
+    for (const k of ORDER) {
+      if (!rd.s[k]) continue;
+      const start = new Date(rd.s[k]);
+      out.push({ round: rd, kind: k, start, end: new Date(start.getTime() + KINDS[k].mins * 60000) });
+    }
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+const isLive = (s, now) => now >= s.start && now <= s.end;
+const roundSessions = rd => ORDER.filter(k => rd.s[k]).map(k => {
+  const start = new Date(rd.s[k]);
+  return { round: rd, kind: k, start, end: new Date(start.getTime() + KINDS[k].mins * 60000) };
+});
+const roundEnd = rd => { const ss = roundSessions(rd); return ss.length ? ss[ss.length - 1].end : new Date(0); };
+
+function current(now) {
+  const all = allSessions();
+  const live = all.find(s => isLive(s, now));
+  if (live) return { s: live, live: true };
+  const next = all.find(s => s.start > now);
+  return next ? { s: next, live: false } : null;
+}
+
+function split(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  return { d: Math.floor(t / 86400), h: Math.floor(t % 86400 / 3600), m: Math.floor(t % 3600 / 60), s: t % 60 };
+}
+const pad = n => String(n).padStart(2, "0");
+
+const inCountry = (b, cc) => cc === "all" || b.cc === cc || (b.ccs && b.ccs.includes(cc));
+
+function applies(b, kind, roundNo) {
+  if (!b.covers.includes(kind)) return false;
+  if (b.rounds && !b.rounds.includes(roundNo)) return false;
+  if (b.id === "it-tv8" && kind === "sprint" && !SPRINT_ROUNDS.includes(roundNo)) return false;
+  return true;
+}
+
+function sourcesFor(kind, roundNo) {
+  const rank = { ok:0, likely:1, check:2 };
+  return SOURCES
+    .filter(b => inCountry(b, state.country))
+    .filter(b => applies(b, kind, roundNo))
+    .sort((a, b) => {
+      const last = (b.id === state.lastSrc ? 1 : 0) - (a.id === state.lastSrc ? 1 : 0);
+      if (last) return last;
+      const owned = (state.subs.includes(b.id) ? 1 : 0) - (state.subs.includes(a.id) ? 1 : 0);
+      if (owned) return owned;
+      if (state.lang !== "all") {
+        const pref = (b.lang === state.lang ? 1 : 0) - (a.lang === state.lang ? 1 : 0);
+        if (pref) return pref;
+      }
+      if (rank[a.conf] !== rank[b.conf]) return rank[a.conf] - rank[b.conf];
+      if (b.q !== a.q) return b.q - a.q;
+      return a.name.localeCompare(b.name, "fr");
+    });
+}
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(toast._h);
+  toast._h = setTimeout(() => t.classList.remove("on"), 1900);
+}
+
+/* ==================================================================
+   RENDU — En direct
+   ================================================================== */
+
+function renderLive() {
+  const now = new Date();
+  const cur = current(now);
+  const el = $("s-live");
+
+  if (!cur) {
+    el.innerHTML = `<div class="empty">Saison ${SEASON} terminée.<br>Les 23 manches sont derrière nous.</div>`;
+    return;
+  }
+
+  const { s, live } = cur;
+  const rd = s.round;
+  const k = KINDS[s.kind];
+  const c = split(s.start - now);
+  const freeCount = sourcesFor(s.kind, rd.r).filter(b => b.kind === "free").length;
+
+  const badge = live
+    ? `<span class="pill live"><span class="dot"></span>En direct</span>`
+    : `<span class="eyebrow">Prochaine séance</span>`;
+
+  const timing = live
+    ? `<div class="times">
+         <div><span>Commencée à</span><b>${hhmm(s.start)}</b></div>
+         <div><span>Fin estimée</span><b>${hhmm(s.end)}</b></div>
+       </div>`
+    : `<div class="countdown">
+         <div class="unit"><b>${pad(c.d)}</b><i>JOURS</i></div>
+         <div class="unit"><b>${pad(c.h)}</b><i>HEURES</i></div>
+         <div class="unit"><b>${pad(c.m)}</b><i>MIN</i></div>
+         <div class="unit"><b>${pad(c.s)}</b><i>SEC</i></div>
+       </div>
+       <div class="times">
+         <div><span>Chez toi</span><b>${dayShort(s.start)} · ${hhmm(s.start)}</b></div>
+         <div><span>Au circuit (${esc(rd.city)})</span><b>${dayShort(s.start, rd.tz)} · ${hhmm(s.start, rd.tz)}</b></div>
+       </div>`;
+
+  const rest = roundSessions(rd).filter(x => x.end > now && x !== s);
+  const leader = DRIVERS[0];
+
+  el.innerHTML = `
+    <div class="stack-l">
+      <div class="hero">
+        <div class="hero-head">
+          <div>${badge}
+            <h1 class="session-name">${esc(k.long)}</h1>
+            <div class="gp-name">${esc(rd.name)} · Manche ${rd.r}</div>
+          </div>
+          <div class="hero-flag">${flag(rd.cc)}</div>
+        </div>
+        ${timing}
+        <button class="cta" data-open="${rd.r}:${s.kind}">
+          Où regarder <span>${freeCount ? `${freeCount} gratuit${freeCount > 1 ? "s" : ""} →` : "→"}</span>
+        </button>
+      </div>
+
+      ${rest.length ? `
+      <div class="sec">
+        <div class="eyebrow">Suite du week-end</div>
+        <div class="round"><div class="sessions">${rest.map(x => srow(x, now)).join("")}</div></div>
+      </div>` : ""}
+
+      <div class="sec">
+        <div class="eyebrow">Championnat</div>
+        <button class="card" style="text-align:left;width:100%" data-goto="stats">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--red)">P1</div>
+            <div style="min-width:0">
+              <div class="rank-name">${esc(leader.first)} ${esc(leader.last)}</div>
+              <div class="rank-team">${esc(leader.team)} · ${leader.w} victoire${leader.w > 1 ? "s" : ""}</div>
+            </div>
+            <div style="margin-left:auto;text-align:right">
+              <div class="rank-val">${leader.pts}</div>
+              <div class="rank-sub">pts</div>
+            </div>
+          </div>
+          <div class="prose" style="margin-top:10px">Après la manche ${STANDINGS_AFTER} · voir tous les classements →</div>
+        </button>
+      </div>
+
+      <div class="sec">
+        <div class="eyebrow">Manches suivantes</div>
+        <div class="stack-s">
+          ${ROUNDS.filter(x => roundEnd(x) > now && x.r !== rd.r).slice(0, 3).map(miniRound).join("")}
+        </div>
+      </div>
+    </div>`;
+}
+
+function miniRound(rd) {
+  return `
+    <div class="round">
+      <div class="round-head" style="cursor:default">
+        <div class="round-flag">${flag(rd.cc)}</div>
+        <div>
+          <div class="round-id">MANCHE ${rd.r}</div>
+          <div class="round-title">${esc(rd.name)}</div>
+        </div>
+        <div class="round-when">${dayShort(new Date(rd.s.race))}</div>
+      </div>
+    </div>`;
+}
+
+/* ==================================================================
+   RENDU — Calendrier
+   ================================================================== */
+
+function srow(x, now) {
+  const k = KINDS[x.kind];
+  const past = x.end < now;
+  const live = isLive(x, now);
+  const free = sourcesFor(x.kind, x.round.r).some(b => b.kind === "free");
+  return `
+    <button class="srow ${k.key ? "key" : ""} ${past ? "past" : ""}" data-open="${x.round.r}:${x.kind}">
+      <span class="srow-tag">${k.tag}</span>
+      <span class="srow-day">${dayShort(x.start)}</span>
+      ${free && !past ? `<span class="pill free">Gratuit</span>` : ""}
+      ${live
+        ? `<span class="srow-time"><span class="pill live"><span class="dot"></span>Direct</span></span>`
+        : `<span class="srow-time">${hhmm(x.start)}</span>`}
+    </button>`;
+}
+
+function renderCal() {
+  const now = new Date();
+  const list = state.past
+    ? ROUNDS.filter(r => roundEnd(r) <= now).reverse()
+    : ROUNDS.filter(r => roundEnd(r) > now);
+  const nextR = current(now)?.s.round.r;
+
+  $("s-cal").innerHTML = `
+    <div class="stack-l">
+      <div class="seg">
+        <button data-past="0" aria-pressed="${!state.past}">À venir</button>
+        <button data-past="1" aria-pressed="${state.past}">Terminées</button>
+      </div>
+      ${state.live ? "" : `
+      <div class="notice"><span>◆</span>
+        <div>Calendrier embarqué, figé au ${new Date(SNAPSHOT).toLocaleDateString("fr-FR")}. Fonctionne hors ligne mais ne suit pas un changement d'horaire décidé après cette date.</div>
+      </div>`}
+      <div class="stack-s">
+        ${list.length ? list.map(rd => roundCard(rd, now, nextR)).join("") : `<div class="empty">Rien à afficher ici.</div>`}
+      </div>
+    </div>`;
+}
+
+function roundCard(rd, now, nextR) {
+  const open = state.openRound === rd.r;
+  const done = roundEnd(rd) <= now;
+  const res = RESULTS.find(x => x.r === rd.r);
+
+  return `
+    <div class="round ${rd.r === nextR ? "next" : ""} ${done ? "done" : ""}" open-state="${open ? 1 : 0}">
+      <button class="round-head" data-round="${rd.r}" aria-expanded="${open}">
+        <div class="round-flag">${flag(rd.cc)}</div>
+        <div>
+          <div class="round-id">MANCHE ${rd.r}${rd.s.sprint ? ` · <span style="color:var(--warn)">SPRINT</span>` : ""}</div>
+          <div class="round-title">${esc(rd.name)}</div>
+          <div class="round-sub">${res ? `Vainqueur : ${esc(res.winName)}` : `${esc(rd.circuit)} · ${esc(rd.city)}`}</div>
+        </div>
+        <div class="round-when">${dayShort(new Date(rd.s.race))}<br><span class="chev">›</span></div>
+      </button>
+      ${open ? `<div class="sessions">
+        ${rd.suspect ? `<div class="notice" style="margin:8px"><span>◆</span>
+          <div>L'API renvoie un intitulé incohérent pour cette manche (« Bahrain Grand Prix in Malaysia »). Circuit et horaires sont ceux de Sepang. À confirmer.</div></div>` : ""}
+        ${roundSessions(rd).map(x => srow(x, now)).join("")}
+      </div>` : ""}
+    </div>`;
+}
+
+/* ==================================================================
+   RENDU — Classements
+   ================================================================== */
+
+function renderStats() {
+  const v = state.statsView;
+  $("s-stats").innerHTML = `
+    <div class="stack-l">
+      <div class="seg">
+        <button data-stats="drivers"  aria-pressed="${v === "drivers"}">Pilotes</button>
+        <button data-stats="teams"    aria-pressed="${v === "teams"}">Écuries</button>
+        <button data-stats="palmares" aria-pressed="${v === "palmares"}">Palmarès</button>
+      </div>
+      ${v === "drivers"  ? driversTable()  : ""}
+      ${v === "teams"    ? teamsTable()    : ""}
+      ${v === "palmares" ? palmaresTable() : ""}
+      <div class="prose">Classements arrêtés après la manche ${STANDINGS_AFTER}, le ${new Date(SNAPSHOT).toLocaleDateString("fr-FR")}. Source : API Jolpica-F1. Ils ne se mettent pas à jour tout seuls dans cette version hors ligne.</div>
+    </div>`;
+}
+
+function driversTable() {
+  const max = DRIVERS[0].pts || 1;
+  return `
+    <div class="sec">
+      <div class="grouphead">
+        <div class="eyebrow">Championnat pilotes</div>
+        <div class="groupcount">après manche ${STANDINGS_AFTER}</div>
+      </div>
+      <div class="card rank">
+        ${DRIVERS.map(d => `
+          <div class="rank-row ${d.p === 1 ? "lead" : ""}">
+            <div class="rank-pos">${d.p}</div>
+            <div class="rank-who">
+              <div class="rank-name">${esc(d.last)} <span style="color:var(--muted);font-size:12px">${esc(d.first)}</span></div>
+              <div class="rank-team">${flag(d.nat)} ${esc(d.team)} · n°${d.n}${d.w ? ` · ${d.w} victoire${d.w > 1 ? "s" : ""}` : ""}</div>
+            </div>
+            <div>
+              <div class="rank-val">${d.pts}</div>
+              <div class="rank-sub">pts</div>
+            </div>
+            <div class="track"><span style="width:${Math.max(1, d.pts / max * 100)}%"></span></div>
+          </div>`).join("")}
+      </div>
+    </div>`;
+}
+
+function teamsTable() {
+  const t = constructorTable();
+  const max = t[0].pts || 1;
+  return `
+    <div class="sec">
+      <div class="grouphead">
+        <div class="eyebrow">Championnat constructeurs</div>
+        <div class="groupcount">calculé</div>
+      </div>
+      <div class="notice"><span>◆</span>
+        <div>L'API sert ce classement à une manche antérieure au classement pilotes. Ces totaux sont donc <strong>recalculés</strong> en additionnant les points des pilotes de chaque écurie. Exact sauf changement de pilote en cours de saison — RB aligne trois pilotes cette année, sa ligne est à prendre avec prudence.</div>
+      </div>
+      <div class="card rank">
+        ${t.map(c => `
+          <div class="rank-row ${c.p === 1 ? "lead" : ""}">
+            <div class="rank-pos">${c.p}</div>
+            <div class="rank-who">
+              <div class="rank-name">${esc(c.team)}</div>
+              <div class="rank-team">${c.drivers.join(" · ")}${c.w ? ` · ${c.w} victoire${c.w > 1 ? "s" : ""}` : ""}</div>
+            </div>
+            <div>
+              <div class="rank-val">${c.pts}</div>
+              <div class="rank-sub">pts</div>
+            </div>
+            <div class="track"><span style="width:${Math.max(1, c.pts / max * 100)}%"></span></div>
+          </div>`).join("")}
+      </div>
+    </div>`;
+}
+
+function palmaresTable() {
+  const byDriver = new Map();
+  for (const r of RESULTS) byDriver.set(r.winName, (byDriver.get(r.winName) || 0) + 1);
+  const top = [...byDriver.entries()].sort((a, b) => b[1] - a[1]);
+  const poles = RESULTS.filter(r => r.pole).length;
+
+  return `
+    <div class="sec">
+      <div class="eyebrow">Vainqueurs de la saison</div>
+      <div class="card">
+        ${RESULTS.slice().reverse().map(r => {
+          const rd = ROUNDS.find(x => x.r === r.r);
+          return `
+          <div class="podium">
+            <div class="podium-rd">R${r.r}</div>
+            <div class="podium-gp">${flag(rd.cc)} ${esc(rd.name.replace("Grand Prix ", "GP "))}</div>
+            <div class="podium-win">
+              <div class="podium-drv">${esc(r.winName)}</div>
+              <div class="podium-meta">${esc(r.winTeam)} · ${esc(r.time)}</div>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Résumé</div>
+      <div class="card rank">
+        ${top.map(([name, n]) => `
+          <div class="rank-row">
+            <div class="rank-pos">—</div>
+            <div class="rank-who"><div class="rank-name">${esc(name)}</div></div>
+            <div><div class="rank-val">${n}</div><div class="rank-sub">victoire${n > 1 ? "s" : ""}</div></div>
+          </div>`).join("")}
+      </div>
+      <div class="prose">${RESULTS.length} manches disputées sur 23. Poles renseignées pour ${poles} d'entre elles — l'API n'en publie pas au-delà.</div>
+    </div>`;
+}
+
+/* ==================================================================
+   RENDU — Feuille de séance
+   ================================================================== */
+
+function openSheet(roundNo, kind) {
+  state.sheet = { r: roundNo, kind };
+  state.openSrc = null;
+  renderSheet();
+  $("sheet-bg").classList.add("on");
+  $("sheet").classList.add("on");
+  document.body.style.overflow = "hidden";
+}
+
+function closeSheet() {
+  state.sheet = null;
+  $("sheet-bg").classList.remove("on");
+  $("sheet").classList.remove("on");
+  document.body.style.overflow = "";
+}
+
+function qualityMeter(b) {
+  const bars = [1, 2, 3].map(n => `<i class="${n <= b.q ? "fill" : ""}"></i>`).join("");
+  return `<span class="qual"><span class="bars ${b.qSrc ? "" : "est"}">${bars}</span>
+    <span class="qual-label">${esc(QUALITY[b.q])}${b.qSrc ? "" : " ?"}</span></span>`;
+}
+
+function sourceCard(b) {
+  const owned  = state.subs.includes(b.id);
+  const pref   = state.lang !== "all" && b.lang === state.lang;
+  const pinned = b.id === state.lastSrc;
+  const open   = state.openSrc === b.id;
+  const conf   = CONF[b.conf];
+  const where  = b.ccs ? b.ccs.map(flag).join(" ") : `${flag(b.cc)} ${esc(countryName(b.cc))}`;
+  const custom  = state.customUrls[b.id] || null;
+  const target  = custom || LIVE_URLS[b.id] || b.url;
+  const editing = state.editUrl === b.id;
+
+  return `
+    <div class="src ${owned ? "owned" : ""} ${pref ? "pref" : ""} ${pinned ? "pinned" : ""}" data-open="${open ? 1 : 0}">
+      <button class="src-main" data-src="${b.id}" aria-expanded="${open}">
+        <div class="src-id">
+          <div class="src-name">${esc(b.name)}</div>
+          <div class="src-where">${where}${pinned ? " · dernière utilisée" : ""}</div>
+          <div class="src-tags">
+            ${b.kind === "free" ? `<span class="pill free">Gratuit</span>` : `<span class="pill quiet">Abonnement</span>`}
+            <span class="pill lang">${esc(b.lang.toUpperCase())}</span>
+            ${owned ? `<span class="pill owned">Abonné</span>` : ""}
+            ${conf ? `<span class="pill warn">${esc(conf)}</span>` : ""}
+            ${qualityMeter(b)}
+          </div>
+        </div>
+        <span class="src-more">›</span>
+      </button>
+
+      ${open ? `<div class="src-detail">
+        <div class="src-scope">${esc(b.scope)}</div>
+        <div class="src-geo">Accessible depuis : ${esc(b.geo)}</div>
+        <div class="src-note">${esc(b.note)}</div>
+
+        <div class="urlbox">
+          <div class="urlbox-head">
+            <span class="eyebrow" style="font-size:10.5px">Lien direct</span>
+            ${custom ? `<span class="pill free">Corrigé par toi</span>`
+                     : `<span class="pill warn">Non vérifié</span>`}
+          </div>
+          <div class="src-host">${esc(target)}</div>
+          ${editing
+            ? `<div class="urledit">
+                 <input id="urlin" type="url" inputmode="url" placeholder="Colle l'URL du player en direct"
+                        value="${esc(custom || target)}">
+                 <div class="src-actions" style="padding:0">
+                   <button class="go" data-save="${b.id}">Enregistrer</button>
+                   <button data-canceledit="1">Annuler</button>
+                 </div>
+               </div>`
+            : `<div class="src-actions" style="padding:0">
+                 <button data-edit="${b.id}">${custom ? "Modifier ce lien" : "Corriger ce lien"}</button>
+                 ${custom ? `<button data-reset="${b.id}">Rétablir</button>` : ""}
+               </div>`}
+          <div class="src-note" style="margin-top:8px">
+            ${custom
+              ? "Ta correction remplace le lien par défaut et voyage dans ton lien de réglages."
+              : "Ce chemin n'a pas pu être testé — les sites de diffuseurs bloquent l'accès automatisé. S'il ne tombe pas sur le player, colle la bonne URL ici : elle sera mémorisée."}
+          </div>
+        </div>
+      </div>` : ""}
+
+      <div class="src-actions">
+        <a class="go" href="${esc(target)}" target="_blank" rel="noopener noreferrer" data-launch="${b.id}">Direct ↗</a>
+        <a href="${esc(b.url)}" target="_blank" rel="noopener noreferrer" data-launch="${b.id}">Accueil ↗</a>
+        <button data-copy="${esc(target)}" style="flex:0 0 auto;padding-inline:14px">⧉</button>
+      </div>
+    </div>`;
+}
+
+function renderSheet() {
+  if (!state.sheet) return;
+  const rd = ROUNDS.find(x => x.r === state.sheet.r);
+  const kind = state.sheet.kind;
+  const k = KINDS[kind];
+  const start = new Date(rd.s[kind]);
+  const now = new Date();
+  const live = now >= start && now <= new Date(start.getTime() + k.mins * 60000);
+
+  const list = sourcesFor(kind, rd.r);
+  const free = list.filter(b => b.kind === "free");
+  const pay  = list.filter(b => b.kind === "pay");
+
+  $("sheet").innerHTML = `
+    <div class="sheet-bar">
+      <div>
+        <div class="eyebrow">${flag(rd.cc)} Manche ${rd.r} · ${esc(rd.city)}</div>
+        <div style="font-family:var(--display);font-weight:800;font-size:22px;line-height:1.1">${esc(k.long)}</div>
+      </div>
+      <button class="close" id="x">✕</button>
+    </div>
+
+    <div class="stack-l">
+      <div class="card stack-s">
+        ${live ? `<span class="pill live" style="align-self:flex-start"><span class="dot"></span>En direct</span>` : ""}
+        <div style="font-family:var(--display);font-weight:700;font-size:17px">${esc(rd.name)}</div>
+        <div class="times">
+          <div><span>Chez toi</span><b>${dayLong(start)} · ${hhmm(start)}</b></div>
+          <div><span>Au circuit</span><b>${dayLong(start, rd.tz)} · ${hhmm(start, rd.tz)}</b></div>
+          <div><span>Durée nominale</span><b>${k.mins} min</b></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="ccsheet">Filtrer par pays</label>
+        <select id="ccsheet" class="compact">
+          <option value="all" ${state.country === "all" ? "selected" : ""}>🌍  Tous les pays</option>
+          ${COUNTRIES.map(c => `<option value="${c.cc}" ${c.cc === state.country ? "selected" : ""}>${flag(c.cc)}  ${esc(c.name)}</option>`).join("")}
+        </select>
+      </div>
+
+      ${free.length ? `
+      <div class="sec">
+        <div class="grouphead">
+          <div class="eyebrow" style="color:var(--live)">Gratuit — chaînes publiques et en clair</div>
+          <div class="groupcount">${free.length}</div>
+        </div>
+        <div class="stack-s">${free.map(sourceCard).join("")}</div>
+      </div>` : `
+      <div class="sec">
+        <div class="eyebrow">Gratuit</div>
+        <div class="card prose">Aucune chaîne gratuite ne couvre cette séance${state.country === "all" ? "" : " dans ce pays"}. Les essais libres, en particulier, ne sont presque jamais en clair.</div>
+      </div>`}
+
+      ${pay.length ? `
+      <div class="sec">
+        <div class="grouphead"><div class="eyebrow">Sur abonnement</div><div class="groupcount">${pay.length}</div></div>
+        <div class="stack-s">${pay.map(sourceCard).join("")}</div>
+      </div>` : ""}
+
+      <div class="card prose">
+        <strong>« Accessible depuis » veut dire quoi.</strong>
+        Les chaînes publiques diffusent gratuitement mais restreignent leur flux à leur territoire. RTS est gratuit quand tu es en Suisse, Tipik quand tu es en Belgique. Cette liste dit qui diffuse quoi et où — pas comment atteindre un flux depuis ailleurs.
+        <div style="margin-top:8px">Dans l'UE, le règlement 2017/1128 rend ton abonnement <em>payant</em> national accessible pendant un séjour temporaire dans un autre État membre. Il ne s'applique pas aux chaînes gratuites.</div>
+      </div>
+    </div>`;
+
+  $("x").onclick = closeSheet;
+  $("ccsheet").onchange = e => {
+    state.country = e.target.value;
+    store.set("country", state.country);
+    renderSheet();
+    render();
+  };
+}
+
+/* ==================================================================
+   RENDU — Réglages
+   ================================================================== */
+
+function renderSet() {
+  const freeAll = SOURCES.filter(b => b.kind === "free").length;
+
+  $("s-set").innerHTML = `
+    <div class="stack-l">
+      <div class="sec">
+        <div class="eyebrow">Sources affichées</div>
+        <div class="card stack-s">
+          <div class="field">
+            <label for="cc">Pays — tous par défaut</label>
+            <select id="cc">
+              <option value="all" ${state.country === "all" ? "selected" : ""}>🌍  Tous les pays</option>
+              ${COUNTRIES.map(c => `<option value="${c.cc}" ${c.cc === state.country ? "selected" : ""}>${flag(c.cc)}  ${esc(c.name)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="lg">Langue — un tri, pas un filtre</label>
+            <select id="lg">
+              <option value="all" ${state.lang === "all" ? "selected" : ""}>Aucune préférence</option>
+              ${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === state.lang ? "selected" : ""}>${esc(v)}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <div class="prose">${freeAll} chaînes gratuites sur ${SOURCES.length} diffuseurs référencés. La langue remonte et surligne les sources concernées, elle n'en masque aucune.</div>
+      </div>
+
+      <div class="sec">
+        <div class="eyebrow">Mes abonnements</div>
+        <div class="card checks">
+          ${SUBSCRIBABLE.map(id => {
+            const b = SOURCES.find(x => x.id === id);
+            const on = state.subs.includes(id);
+            return `<button class="check" data-sub="${id}" aria-pressed="${on}">
+                      <span class="box">✓</span>${esc(b.name)}
+                      <span class="src-where" style="margin-left:auto">${esc(b.ccs ? b.ccs.join(" ") : b.cc)}</span>
+                    </button>`;
+          }).join("")}
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="eyebrow">Confidentialité et navigation privée</div>
+        ${storageOK
+          ? `<div class="notice ok"><span>●</span><div>Le stockage local fonctionne. Tes réglages sont conservés dans ce navigateur.</div></div>`
+          : `<div class="notice"><span>◆</span><div>Le stockage local est bloqué — navigation privée stricte, ou cookies désactivés. Tes réglages seront perdus en fermant l'onglet. Utilise le lien permanent ci-dessous.</div></div>`}
+        <button class="btn" id="permalink">Copier mon lien de réglages</button>
+        <div class="card prose">
+          <strong>Ce lien encode ton pays, ta langue et tes abonnements directement dans l'URL.</strong> Mets-le en favori ou sur ton écran d'accueil : tes réglages reviennent même en navigation privée, même sur un autre appareil.
+          <div style="margin-top:10px"><strong>Derrière un VPN, rien ne change.</strong> Cette page ne fait aucun appel à un service tiers, ne pose aucun cookie, n'embarque aucun traceur ni aucune analytique. Il n'y a rien à masquer côté app : ton adresse IP ne lui sert à rien puisqu'elle ne parle à personne.</div>
+          <div style="margin-top:10px">En navigation privée façon Safari, le stockage est accepté puis vidé à la fermeture — impossible à détecter depuis la page. Si tu retrouves tes réglages par défaut à chaque ouverture, c'est ça : le lien permanent est la réponse.</div>
+          <div style="margin-top:10px">Un point à ne pas confondre : un VPN protège ton trafic, il ne change pas ce qu'un diffuseur autorise. Le géoblocage d'une chaîne publique est une clause de licence, pas un réglage de confidentialité.</div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="eyebrow">Liens directs</div>
+        <div class="card prose">
+          Chaque diffuseur a deux boutons : <strong>Direct</strong> vise la page du player en direct, <strong>Accueil</strong> renvoie sur le site principal si le premier échoue.
+          <div style="margin-top:8px"><strong>Les liens « Direct » n'ont pas pu être testés.</strong> Les sites de diffuseurs bloquent l'accès automatisé, je n'ai donc pas pu vérifier qu'ils tombent bien sur le lecteur. Ce sont les chemins habituels de chaque plateforme, pas des liens confirmés.</div>
+          <div style="margin-top:8px">Quand un lien tombe à côté, déplie la source et utilise <strong>Corriger ce lien</strong> : ta version remplace la mienne définitivement et suit ton lien de réglages.</div>
+        </div>
+        ${Object.keys(state.customUrls).length ? `
+          <div class="card checks">
+            ${Object.entries(state.customUrls).map(([id, u]) => {
+              const b = SOURCES.find(x => x.id === id);
+              return `<div style="padding:9px 12px">
+                <div style="font-weight:600;font-size:14px">${esc(b ? b.name : id)}</div>
+                <div class="src-host">${esc(u)}</div>
+              </div>`;
+            }).join("")}
+          </div>
+          <button class="btn" id="resetall">Effacer toutes mes corrections</button>`
+          : `<div class="prose">Aucune correction enregistrée pour l'instant.</div>`}
+      </div>
+
+      <div class="sec">
+        <div class="eyebrow">Indicateur de qualité</div>
+        <div class="card prose">
+          Trois barres : <strong>Ultra HD</strong>, <strong>HD 1080</strong>, <strong>HD</strong>.
+          <div style="margin-top:8px">Barres pleines = définition <strong>annoncée par le diffuseur</strong> et sourcée. Barres grises suivies d'un <strong>?</strong> = valeur par défaut non confirmée.</div>
+          <div style="margin-top:8px">Aucun débit n'a été mesuré. La qualité réelle dépend de ta connexion et de l'offre souscrite.</div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="eyebrow">Ajouter à l'écran d'accueil</div>
+        <div class="card prose">
+          <strong>iPhone (Safari)</strong> — Partager, puis « Sur l'écran d'accueil ». L'icône ouvre la page en plein écran.
+          <div style="margin-top:8px"><strong>Mac</strong> — Safari : Fichier &gt; Ajouter au Dock. Chrome : menu &gt; Diffuser, enregistrer et partager &gt; Installer.</div>
+          <div style="margin-top:8px">Astuce : ajoute le <strong>lien de réglages</strong> plutôt que l'URL nue, pour que l'icône restaure aussi ta configuration.</div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="eyebrow">Données</div>
+        <div class="card prose">
+          Calendrier ${SEASON} — 23 manches, ${allSessions().length} séances. Classements après la manche ${STANDINGS_AFTER}. Source : API Jolpica-F1, relevé le ${new Date(SNAPSHOT).toLocaleDateString("fr-FR")}.
+          <div style="margin-top:8px">Diffuseurs : liste des diffuseurs F1 par pays de Wikipédia, même date. Les droits changent chaque saison — les entrées <strong>À vérifier</strong> ne sont pas confirmées.</div>
+          <div style="margin-top:8px">Statut : <strong>${state.live ? "rafraîchi depuis l'API" : "hors ligne, données embarquées"}</strong>.</div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="eyebrow">Ce que cette page ne fait pas</div>
+        <div class="card prose">
+          Aucune capture ni rediffusion de flux, aucun VPN ou proxy intégré, aucune usurpation de localisation, aucun stockage d'identifiants. Les chaînes gratuites listées sont géobloquées à leur territoire et la page l'indique pour chacune.
+        </div>
+      </div>
+    </div>`;
+
+  $("cc").onchange = e => { state.country = e.target.value; store.set("country", state.country); if (state.sheet) renderSheet(); };
+  $("lg").onchange = e => { state.lang = e.target.value; store.set("lang", state.lang); if (state.sheet) renderSheet(); };
+
+  const resetAll = $("resetall");
+  if (resetAll) resetAll.onclick = () => {
+    state.customUrls = {};
+    store.set("customUrls", {});
+    renderSet();
+    if (state.sheet) renderSheet();
+    toast("Corrections effacées");
+  };
+
+  $("permalink").onclick = async () => {
+    const link = settingsLink();
+    try {
+      await navigator.clipboard.writeText(link);
+      toast("Lien copié");
+    } catch (e) {
+      location.hash = "s=" + link.split("#s=")[1];
+      toast("Lien placé dans la barre d'adresse");
+    }
+  };
+
+  $("s-set").querySelectorAll("[data-sub]").forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.sub;
+      state.subs = state.subs.includes(id) ? state.subs.filter(x => x !== id) : state.subs.concat(id);
+      store.set("subs", state.subs);
+      renderSet();
+      if (state.sheet) renderSheet();
+    };
+  });
+}
+
+/* ==================================================================
+   Barre « Regarder » — raccourci permanent
+   ================================================================== */
+
+function renderWatchbar() {
+  const now = new Date();
+  const cur = current(now);
+  const bar = $("watchbar");
+
+  // Visible seulement quand c'est utile : en direct, ou à moins de 3 h.
+  if (!cur || (!cur.live && cur.s.start - now > 3 * 3600 * 1000)) {
+    bar.classList.remove("on");
+    bar.innerHTML = "";
+    return;
+  }
+
+  const k = KINDS[cur.s.kind];
+  const c = split(cur.s.start - now);
+  const sub = cur.live ? "en cours" : `dans ${c.h ? c.h + " h " : ""}${pad(c.m)} min`;
+
+  bar.classList.add("on");
+  bar.innerHTML = `
+    <button data-open="${cur.s.round.r}:${cur.s.kind}">
+      <span>${cur.live ? "● " : ""}Regarder ${esc(k.tag)}</span>
+      <span class="sub">${esc(sub)}</span>
+    </button>`;
+}
+
+/* ==================================================================
+   ORCHESTRATION
+   ================================================================== */
+
+function render() {
+  $("zone").textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (state.tab === "live")  renderLive();
+  if (state.tab === "cal")   renderCal();
+  if (state.tab === "stats") renderStats();
+  if (state.tab === "set")   renderSet();
+  renderWatchbar();
+}
+
+function show(tab) {
+  state.tab = tab;
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  $("s-" + tab).classList.add("on");
+  document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  render();
+  window.scrollTo(0, 0);
+}
+
+document.querySelector(".tabbar").onclick = e => {
+  const b = e.target.closest("[data-tab]");
+  if (b) show(b.dataset.tab);
+};
+
+$("watchbar").onclick = e => {
+  const b = e.target.closest("[data-open]");
+  if (b) { const [r, k] = b.dataset.open.split(":"); openSheet(Number(r), k); }
+};
+
+document.querySelector(".app").addEventListener("click", e => {
+  const goto = e.target.closest("[data-goto]");
+  if (goto) { show(goto.dataset.goto); return; }
+
+  const open = e.target.closest("[data-open]");
+  if (open) { const [r, k] = open.dataset.open.split(":"); openSheet(Number(r), k); return; }
+
+  const round = e.target.closest("[data-round]");
+  if (round) {
+    const n = Number(round.dataset.round);
+    state.openRound = state.openRound === n ? null : n;
+    renderCal();
+    return;
+  }
+  const past = e.target.closest("[data-past]");
+  if (past) { state.past = past.dataset.past === "1"; state.openRound = null; renderCal(); return; }
+
+  const stats = e.target.closest("[data-stats]");
+  if (stats) { state.statsView = stats.dataset.stats; renderStats(); }
+});
+
+/* Actions dans la feuille : déplier une source, ouvrir, copier. */
+$("sheet").addEventListener("click", async e => {
+  const edit = e.target.closest("[data-edit]");
+  if (edit) { state.editUrl = edit.dataset.edit; renderSheet(); $("urlin")?.focus(); return; }
+
+  if (e.target.closest("[data-canceledit]")) { state.editUrl = null; renderSheet(); return; }
+
+  const save = e.target.closest("[data-save]");
+  if (save) {
+    const val = ($("urlin")?.value || "").trim();
+    if (!/^https?:\/\/.+/i.test(val)) { toast("URL invalide — elle doit commencer par https://"); return; }
+    state.customUrls = Object.assign({}, state.customUrls, { [save.dataset.save]: val });
+    store.set("customUrls", state.customUrls);
+    state.editUrl = null;
+    renderSheet();
+    toast("Lien corrigé et mémorisé");
+    return;
+  }
+
+  const reset = e.target.closest("[data-reset]");
+  if (reset) {
+    const next = Object.assign({}, state.customUrls);
+    delete next[reset.dataset.reset];
+    state.customUrls = next;
+    store.set("customUrls", state.customUrls);
+    renderSheet();
+    toast("Lien par défaut rétabli");
+    return;
+  }
+
+  const src = e.target.closest("[data-src]");
+  if (src) {
+    state.openSrc = state.openSrc === src.dataset.src ? null : src.dataset.src;
+    state.editUrl = null;
+    renderSheet();
+    return;
+  }
+  const launch = e.target.closest("[data-launch]");
+  if (launch) {
+    state.lastSrc = launch.dataset.launch;
+    store.set("lastSrc", state.lastSrc);
+    return;   // on laisse le lien s'ouvrir normalement
+  }
+  const copy = e.target.closest("[data-copy]");
+  if (copy) {
+    try { await navigator.clipboard.writeText(copy.dataset.copy); toast("Lien copié"); }
+    catch (err) { toast("Copie refusée par le navigateur"); }
+  }
+});
+
+$("sheet-bg").onclick = closeSheet;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+
+setInterval(() => {
+  if (state.tab === "live") renderLive();
+  renderWatchbar();
+}, 1000);
+
+(function meta() {
+  const tags = [
+    ["apple-mobile-web-app-capable", "yes"],
+    ["apple-mobile-web-app-status-bar-style", "black-translucent"],
+    ["apple-mobile-web-app-title", "F1 Companion"],
+    ["theme-color", "#0A0A0E"],
+    ["mobile-web-app-capable", "yes"]
+  ];
+  for (const [name, content] of tags) {
+    const m = document.createElement("meta");
+    m.name = name; m.content = content;
+    document.head.appendChild(m);
+  }
+})();
+
+/* Rafraîchissement du calendrier depuis l'API.
+   Sur un artefact claude.ai, la politique de sécurité bloque les appels
+   sortants : échec immédiat et silencieux, la page garde ses données
+   embarquées. Héberge ce fichier ailleurs et l'appel passe. */
+(async function refresh() {
+  const TZ = {
+    albert_park:"Australia/Melbourne", shanghai:"Asia/Shanghai", suzuka:"Asia/Tokyo",
+    miami:"America/New_York", villeneuve:"America/Toronto", monaco:"Europe/Monaco",
+    catalunya:"Europe/Madrid", red_bull_ring:"Europe/Vienna", silverstone:"Europe/London",
+    spa:"Europe/Brussels", hungaroring:"Europe/Budapest", zandvoort:"Europe/Amsterdam",
+    monza:"Europe/Rome", madring:"Europe/Madrid", baku:"Asia/Baku",
+    sepang:"Asia/Kuala_Lumpur", marina_bay:"Asia/Singapore", americas:"America/Chicago",
+    rodriguez:"America/Mexico_City", interlagos:"America/Sao_Paulo", vegas:"America/Los_Angeles",
+    losail:"Asia/Qatar", yas_marina:"Asia/Dubai"
+  };
+  const iso = b => (b && b.date && b.time) ? b.date + "T" + b.time.replace("Z", "") + "Z" : null;
+
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(`https://api.jolpi.ca/ergast/f1/${SEASON}/races/?format=json&limit=100`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return;
+
+    const races = (await res.json())?.MRData?.RaceTable?.Races;
+    if (!Array.isArray(races) || !races.length) return;
+
+    const fresh = races.map(x => {
+      const s = {};
+      const map = [["fp1", x.FirstPractice], ["fp2", x.SecondPractice], ["fp3", x.ThirdPractice],
+                   ["sq", x.SprintQualifying || x.SprintShootout], ["sprint", x.Sprint], ["q", x.Qualifying]];
+      for (const [k, box] of map) { const v = iso(box); if (v) s[k] = v; }
+      const r = iso({ date: x.date, time: x.time });
+      if (r) s.race = r;
+      if (!Object.keys(s).length) return null;
+      const known = ROUNDS.find(o => o.r === Number(x.round));
+      if (!known) return null;
+      return Object.assign({}, known, { s, tz: TZ[x.Circuit?.circuitId] || known.tz });
+    }).filter(Boolean);
+
+    if (fresh.length < 10) return;
+    ROUNDS.length = 0;
+    ROUNDS.push(...fresh.sort((a, b) => a.r - b.r));
+    state.live = true;
+    render();
+  } catch (e) { /* réseau bloqué : les données embarquées font le travail */ }
+})();
+
+show("live");
+
+/* Raccourci : ouvrir la page sur #watch va droit à la séance courante.
+   Permet une seconde icône d'écran d'accueil qui lance en un tap. */
+if (/(^|[#&])watch/.test(location.hash)) {
+  const cur = current(new Date());
+  if (cur) openSheet(cur.s.round.r, cur.s.kind);
+}
+</script>
