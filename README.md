@@ -21,10 +21,32 @@ diffuseur, où la lecture se fait dans ses conditions.
 | **En direct** | Séance en cours ou prochaine, compte à rebours à la seconde, heure locale + heure circuit, raccourci vers les diffuseurs |
 | **Calendrier** | 23 manches, dépliables séance par séance, week-ends Sprint signalés, vainqueur affiché sur les manches passées |
 | **Classements** | Championnat pilotes, championnat écuries, palmarès des manches disputées |
-| **Réglages** | Filtre pays, préférence de langue, abonnements, correction des liens, lien de réglages permanent |
+| **Réglages** | Export calendrier, filtre pays, préférence de langue, abonnements, correction des liens, lien de réglages permanent |
 
 Un badge **Gratuit** apparaît sur chaque séance couverte par au moins une chaîne
 en clair, avant même d'ouvrir la fiche.
+
+### Le verdict
+
+Ouvrir une séance donne d'abord une réponse en une phrase à la seule question qui
+compte — *est-ce que je peux regarder ça ?* — en croisant les abonnements
+déclarés et le pays sélectionné. Quatre états : couvert par un abonnement,
+disponible gratuitement, abonnement supplémentaire requis, aucune source connue.
+
+Les sources se filtrent ensuite en **Tout / Gratuit / Mes abos**, avec le compte
+de chacun. Sans ça, une course affichait vingt cartes dont une seule concernait
+l'utilisateur.
+
+### Export vers Calendrier Apple
+
+Réglages → *Calendrier Apple* produit un fichier `.ics` (RFC 5545) des séances
+choisies, avec une alerte configurable avant chaque départ. Une fois importé,
+iOS gère les notifications lui-même, sans que l'app soit ouverte — c'est ce qui
+remplace les notifications locales perdues en quittant l'application native.
+
+Les heures sont en UTC dans le fichier : l'appareil les convertit, y compris
+après un changement de fuseau. Chaque séance porte un identifiant stable, donc
+un réimport met les événements à jour au lieu de les dupliquer.
 
 ## Pourquoi l'héberger sur GitHub Pages plutôt qu'ailleurs
 

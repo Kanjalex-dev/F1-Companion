@@ -201,6 +201,37 @@ a { color: inherit; text-decoration: none; }
   transition: background .15s, color .15s;
 }
 .seg button[aria-pressed="true"] { background: var(--red); color: #fff; }
+.segnum {
+  display: inline-block; margin-left: 4px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 500; opacity: .7;
+}
+
+/* ---------- Verdict ----------
+   Couleur sémantique, distincte du rouge d'accent : elle encode un
+   état (couvert / gratuit / à payer), pas une mise en avant. */
+.verdict {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 13px 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface);
+}
+.verdict-mark { font-size: 13px; line-height: 1.5; flex: none; }
+.verdict-title { font-family: var(--display); font-weight: 700; font-size: 16px; line-height: 1.2; }
+.verdict-detail { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+.verdict-go {
+  flex: none; align-self: center;
+  padding: 8px 12px; border-radius: 9px;
+  font-size: 13px; font-weight: 600;
+  background: var(--red); color: #fff;
+}
+.verdict-go:hover { background: #c60500; }
+
+.verdict.v-ok   { border-color: rgba(0,210,106,.38); background: rgba(0,210,106,.07); }
+.verdict.v-ok   .verdict-mark { color: var(--live); }
+.verdict.v-free { border-color: rgba(0,210,106,.22); }
+.verdict.v-free .verdict-mark { color: var(--live); }
+.verdict.v-pay  { border-color: rgba(255,176,32,.30); background: rgba(255,176,32,.05); }
+.verdict.v-pay  .verdict-mark { color: var(--warn); }
+.verdict.v-none .verdict-mark { color: var(--muted); }
 
 /* ---------- Manches ---------- */
 
@@ -778,6 +809,11 @@ const state = {
   editUrl:   null,
   lastSrc:   store.get("lastSrc", null),
   statsView: "drivers",
+  /* Vue des sources dans la fiche séance : tout / gratuit seulement / mes abos. */
+  srcView:   store.get("srcView", "all"),
+  /* Export calendrier : périmètre et délai d'alerte. */
+  icsScope:  store.get("icsScope", "key"),
+  icsAlarm:  store.get("icsAlarm", 15),
   past:      false,
   openRound: null,
   openSrc:   null,
@@ -874,6 +910,150 @@ function toast(msg) {
   t.classList.add("on");
   clearTimeout(toast._h);
   toast._h = setTimeout(() => t.classList.remove("on"), 1900);
+}
+
+/* ==================================================================
+   EXPORT CALENDRIER (.ics)
+
+   Remplace les notifications locales perdues en quittant le natif :
+   une fois importé, iOS gère les alertes lui-même, sans que l'app
+   soit ouverte. Format RFC 5545 — fins de ligne CRLF et repliement
+   des lignes à 75 octets, sinon certains clients refusent le fichier.
+   ================================================================== */
+
+const ICS_SCOPES = {
+  key:  { label: "Qualifs, Sprint, Course", kinds: ["sq", "sprint", "q", "race"] },
+  race: { label: "Courses uniquement",      kinds: ["sprint", "race"] },
+  all:  { label: "Toutes les séances",      kinds: ORDER }
+};
+
+/** Échappement des valeurs texte iCalendar. */
+const icsEsc = s => String(s)
+  .replace(/\\/g, "\\\\").replace(/;/g, "\\;")
+  .replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+
+/** Repliement à 75 octets : la suite d'une ligne commence par une espace. */
+function icsFold(line) {
+  const bytes = new TextEncoder().encode(line);
+  if (bytes.length <= 75) return line;
+  const out = [];
+  let cur = "";
+  let len = 0;
+  for (const ch of line) {
+    const n = new TextEncoder().encode(ch).length;
+    if (len + n > (out.length ? 74 : 75)) { out.push(cur); cur = ""; len = 0; }
+    cur += ch; len += n;
+  }
+  if (cur) out.push(cur);
+  return out.join("\r\n ");
+}
+
+const icsStamp = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+
+function buildICS() {
+  const scope = ICS_SCOPES[state.icsScope] || ICS_SCOPES.key;
+  const now = new Date();
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//F1 Companion//FR//",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    `X-WR-CALNAME:Formule 1 ${SEASON}`,
+    "X-WR-TIMEZONE:UTC"
+  ];
+
+  let count = 0;
+  for (const rd of ROUNDS) {
+    for (const k of ORDER) {
+      if (!rd.s[k] || !scope.kinds.includes(k)) continue;
+      const start = new Date(rd.s[k]);
+      const end = new Date(start.getTime() + KINDS[k].mins * 60000);
+      const gp = rd.name.replace("Grand Prix ", "GP ");
+
+      lines.push("BEGIN:VEVENT");
+      // UID stable : un ré-import met à jour au lieu de dupliquer.
+      lines.push(`UID:${SEASON}-r${rd.r}-${k}@f1companion`);
+      lines.push(`DTSTAMP:${icsStamp(now)}`);
+      lines.push(`DTSTART:${icsStamp(start)}`);
+      lines.push(`DTEND:${icsStamp(end)}`);
+      lines.push(icsFold(`SUMMARY:${icsEsc(`${KINDS[k].tag} · ${gp}`)}`));
+      lines.push(icsFold(`LOCATION:${icsEsc(`${rd.circuit}, ${rd.city}`)}`));
+      lines.push(icsFold(`DESCRIPTION:${icsEsc(
+        `${KINDS[k].long} — manche ${rd.r} sur 23.\n` +
+        `Heure au circuit : ${hhmm(start, rd.tz)} (${rd.tz}).\n` +
+        `Durée nominale : ${KINDS[k].mins} min.`
+      )}`));
+      lines.push("TRANSP:TRANSPARENT");
+      if (state.icsAlarm > 0) {
+        lines.push("BEGIN:VALARM", "ACTION:DISPLAY",
+          icsFold(`DESCRIPTION:${icsEsc(`${KINDS[k].tag} · ${gp}`)}`),
+          `TRIGGER:-PT${state.icsAlarm}M`, "END:VALARM");
+      }
+      lines.push("END:VEVENT");
+      count++;
+    }
+  }
+  lines.push("END:VCALENDAR");
+  return { ics: lines.join("\r\n") + "\r\n", count };
+}
+
+function downloadICS() {
+  const { ics, count } = buildICS();
+  try {
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `f1-${SEASON}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 8000);
+    toast(`${count} séances exportées`);
+  } catch (e) {
+    toast("Export refusé par le navigateur");
+  }
+}
+
+/* ==================================================================
+   VERDICT — « est-ce que je peux regarder ça ? »
+
+   L'écran montrait vingt sources dont une seule concerne l'utilisateur.
+   Ce verdict répond à la seule question qui compte, en une phrase, en
+   croisant ses abonnements et le pays sélectionné.
+   ================================================================== */
+
+function verdict(kind, roundNo) {
+  const all = SOURCES
+    .filter(b => inCountry(b, state.country))
+    .filter(b => applies(b, kind, roundNo));
+
+  const mine = all.filter(b => state.subs.includes(b.id));
+  const free = all.filter(b => b.kind === "free");
+
+  if (mine.length) {
+    return { level: "ok", src: mine[0],
+      title: `${mine[0].name} diffuse cette séance`,
+      detail: mine.length > 1
+        ? `Et ${mine.length - 1} autre${mine.length > 2 ? "s" : ""} de tes abonnements.`
+        : "C'est dans ce que tu paies déjà." };
+  }
+  if (free.length) {
+    return { level: "free", src: free[0],
+      title: `${free.length} chaîne${free.length > 1 ? "s" : ""} gratuite${free.length > 1 ? "s" : ""}`,
+      detail: `Aucun de tes abonnements ne la couvre. ${free[0].name} la diffuse — accessible depuis ${free[0].geo}.` };
+  }
+  if (all.length) {
+    return { level: "pay", src: all[0],
+      title: "Abonnement supplémentaire requis",
+      detail: `Ni tes abonnements ni une chaîne gratuite ne couvrent cette séance. ${all.length} source${all.length > 1 ? "s" : ""} payante${all.length > 1 ? "s" : ""} la diffuse${all.length > 1 ? "nt" : ""}.` };
+  }
+  return { level: "none", src: null,
+    title: "Aucune source référencée",
+    detail: state.country === "all"
+      ? "Aucun diffuseur connu pour cette séance."
+      : "Aucun diffuseur connu pour cette séance dans ce pays. Essaie « Tous les pays »." };
 }
 
 /* ==================================================================
@@ -1268,9 +1448,14 @@ function renderSheet() {
   const now = new Date();
   const live = now >= start && now <= new Date(start.getTime() + k.mins * 60000);
 
-  const list = sourcesFor(kind, rd.r);
+  const v = verdict(kind, rd.r);
+  const full = sourcesFor(kind, rd.r);
+  const list = state.srcView === "free" ? full.filter(b => b.kind === "free")
+             : state.srcView === "mine" ? full.filter(b => state.subs.includes(b.id))
+             : full;
   const free = list.filter(b => b.kind === "free");
   const pay  = list.filter(b => b.kind === "pay");
+  const mineCount = full.filter(b => state.subs.includes(b.id)).length;
 
   $("sheet").innerHTML = `
     <div class="sheet-bar">
@@ -1292,8 +1477,27 @@ function renderSheet() {
         </div>
       </div>
 
+      <div class="verdict v-${v.level}">
+        <div class="verdict-mark">${v.level === "ok" ? "●" : v.level === "free" ? "◆" : "○"}</div>
+        <div>
+          <div class="verdict-title">${esc(v.title)}</div>
+          <div class="verdict-detail">${esc(v.detail)}</div>
+          ${state.country === "all" && v.level !== "none"
+            ? `<div class="verdict-detail" style="margin-top:5px;opacity:.8">Verdict établi tous pays confondus. Choisis le pays où tu es pour qu'il tienne compte du géoblocage.</div>`
+            : ""}
+        </div>
+        ${v.src ? `<a class="verdict-go" href="${esc(state.customUrls[v.src.id] || LIVE_URLS[v.src.id] || v.src.url)}"
+             target="_blank" rel="noopener noreferrer" data-launch="${v.src.id}">Ouvrir ↗</a>` : ""}
+      </div>
+
+      <div class="seg" id="srcseg">
+        <button data-srcview="all"  aria-pressed="${state.srcView === "all"}">Tout <span class="segnum">${full.length}</span></button>
+        <button data-srcview="free" aria-pressed="${state.srcView === "free"}">Gratuit <span class="segnum">${full.filter(b => b.kind === "free").length}</span></button>
+        <button data-srcview="mine" aria-pressed="${state.srcView === "mine"}">Mes abos <span class="segnum">${mineCount}</span></button>
+      </div>
+
       <div class="field">
-        <label for="ccsheet">Filtrer par pays</label>
+        <label for="ccsheet">Pays</label>
         <select id="ccsheet" class="compact">
           <option value="all" ${state.country === "all" ? "selected" : ""}>🌍  Tous les pays</option>
           ${COUNTRIES.map(c => `<option value="${c.cc}" ${c.cc === state.country ? "selected" : ""}>${flag(c.cc)}  ${esc(c.name)}</option>`).join("")}
@@ -1319,6 +1523,9 @@ function renderSheet() {
         <div class="stack-s">${pay.map(sourceCard).join("")}</div>
       </div>` : ""}
 
+      ${state.srcView === "mine" && !mineCount ? `
+      <div class="card prose">Aucun de tes abonnements ne couvre cette séance${state.country === "all" ? "" : " dans ce pays"}. Bascule sur « Gratuit » ou « Tout », ou complète tes abonnements dans les Réglages.</div>` : ""}
+
       <div class="card prose">
         <strong>« Accessible depuis » veut dire quoi.</strong>
         Les chaînes publiques diffusent gratuitement mais restreignent leur flux à leur territoire. RTS est gratuit quand tu es en Suisse, Tipik quand tu es en Belgique. Cette liste dit qui diffuse quoi et où — pas comment atteindre un flux depuis ailleurs.
@@ -1327,6 +1534,15 @@ function renderSheet() {
     </div>`;
 
   $("x").onclick = closeSheet;
+
+  $("srcseg").onclick = e => {
+    const b = e.target.closest("[data-srcview]");
+    if (!b) return;
+    state.srcView = b.dataset.srcview;
+    store.set("srcView", state.srcView);
+    renderSheet();
+  };
+
   $("ccsheet").onchange = e => {
     state.country = e.target.value;
     store.set("country", state.country);
@@ -1394,6 +1610,36 @@ function renderSet() {
       </div>
 
       <div class="sec">
+        <div class="eyebrow">Calendrier Apple</div>
+        <div class="card stack-s">
+          <div class="field">
+            <label for="icsscope">Quelles séances exporter</label>
+            <select id="icsscope">
+              ${Object.entries(ICS_SCOPES).map(([k, v]) =>
+                `<option value="${k}" ${k === state.icsScope ? "selected" : ""}>${esc(v.label)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="icsalarm">Alerte avant le départ</label>
+            <select id="icsalarm">
+              <option value="0"  ${state.icsAlarm === 0  ? "selected" : ""}>Aucune</option>
+              <option value="15" ${state.icsAlarm === 15 ? "selected" : ""}>15 minutes</option>
+              <option value="30" ${state.icsAlarm === 30 ? "selected" : ""}>30 minutes</option>
+              <option value="60" ${state.icsAlarm === 60 ? "selected" : ""}>1 heure</option>
+            </select>
+          </div>
+          <button class="btn" id="icsdl" style="background:var(--red);border-color:var(--red);color:#fff">
+            Télécharger le calendrier (.ics)
+          </button>
+        </div>
+        <div class="prose">
+          <strong>C'est ce qui remplace les notifications perdues en quittant l'app native.</strong> Une fois le fichier importé, iOS gère les alertes lui-même — l'app n'a même pas besoin d'être ouverte.
+          <div style="margin-top:8px">Sur iPhone, le téléchargement propose d'ajouter les événements à Calendrier. Les heures sont en UTC dans le fichier : ton téléphone les convertit automatiquement, y compris si tu changes de fuseau en cours de saison.</div>
+          <div style="margin-top:8px">Tu peux réimporter après un changement d'horaire : chaque séance a un identifiant stable, donc les événements sont mis à jour au lieu d'être dupliqués.</div>
+        </div>
+      </div>
+
+      <div class="sec">
         <div class="eyebrow">Liens directs</div>
         <div class="card prose">
           Chaque diffuseur a deux boutons : <strong>Direct</strong> vise la page du player en direct, <strong>Accueil</strong> renvoie sur le site principal si le premier échoue.
@@ -1451,6 +1697,10 @@ function renderSet() {
 
   $("cc").onchange = e => { state.country = e.target.value; store.set("country", state.country); if (state.sheet) renderSheet(); };
   $("lg").onchange = e => { state.lang = e.target.value; store.set("lang", state.lang); if (state.sheet) renderSheet(); };
+
+  $("icsscope").onchange = e => { state.icsScope = e.target.value; store.set("icsScope", state.icsScope); };
+  $("icsalarm").onchange = e => { state.icsAlarm = Number(e.target.value); store.set("icsAlarm", state.icsAlarm); };
+  $("icsdl").onclick = downloadICS;
 
   const resetAll = $("resetall");
   if (resetAll) resetAll.onclick = () => {
