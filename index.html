@@ -348,7 +348,7 @@ a { color: inherit; text-decoration: none; }
 .sheet.on { transform: translateY(0); }
 
 .sheet-bar {
-  position: sticky; top: 0; background: var(--ink); padding: 12px 0 10px;
+  position: sticky; top: 0; z-index: 2; background: var(--ink); padding: 12px 0 10px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   border-bottom: 1px solid var(--line); margin-bottom: 14px;
 }
@@ -498,6 +498,69 @@ select.compact { padding: 8px 10px; font-size: 13px; }
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
 }
 .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* ---------- Analyse de seance (OpenF1) ----------
+   Donnees post-seance : l'acces temps reel d'OpenF1 est payant, le
+   reste est gratuit. Tout arrive une fois la seance terminee. */
+
+.sheet.full { max-height: 100vh; height: 100vh; border-radius: 0; top: 0; }
+.ana-bar { display: flex; align-items: center; gap: 12px; }
+.ana-back { width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--surface-2); color: var(--muted); display: grid; place-items: center; }
+.ana-title { font-family: var(--display); font-weight: 800; font-size: 19px; line-height: 1.1; }
+.ana-sub { font-size: 11.5px; color: var(--muted); }
+
+.viz { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 13px 12px 10px; }
+.viz svg { display: block; width: 100%; height: auto; }
+.viz .grid line { stroke: var(--line); stroke-width: 1; }
+.viz .axis { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); }
+.viz .serie { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz .cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.viz .hit { fill: transparent; }
+.viz .pt { stroke: var(--surface); stroke-width: 2; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.legend button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
+  padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface-2); font-size: 12.5px; font-weight: 600;
+}
+.legend button[aria-pressed="false"] { opacity: .42; }
+.legend .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.legend .code { font-family: var(--mono); font-weight: 700; font-size: 12px; }
+
+.tip {
+  position: absolute; z-index: 3; pointer-events: none;
+  background: var(--ink); border: 1px solid var(--line); border-radius: 9px;
+  padding: 8px 10px; font-size: 12px; min-width: 112px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.5);
+}
+.tip .lap { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .06em; }
+.tip .row { display: flex; align-items: center; gap: 7px; margin-top: 5px; }
+.tip .row b { margin-left: auto; font-family: var(--mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Relais : le code couleur pneu est universel, chaque segment porte sa
+   lettre — l'identite n'est jamais portee par la couleur seule. */
+.stints { display: flex; flex-direction: column; gap: 3px; }
+.stint-row { display: flex; align-items: center; gap: 9px; }
+.stint-who { width: 42px; flex: none; font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.stint-bars { display: flex; flex: 1; min-width: 0; gap: 2px; height: 20px; }
+.stint-seg {
+  display: grid; place-items: center; border-radius: 3px; min-width: 0;
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700; color: #0A0A0E;
+}
+.stint-seg.dark { color: #F2F2F5; }
+.tyrekey { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+.tyrekey span { display: inline-flex; align-items: center; gap: 5px; }
+.tyrekey i { width: 9px; height: 9px; border-radius: 2px; display: block; }
+
+.sect { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.sect th { font-family: var(--display); font-weight: 700; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 0 0 7px; }
+.sect th:first-child { text-align: left; }
+.sect td { padding: 8px 0; border-top: 1px solid rgba(43,43,58,.7); text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sect td:first-child { text-align: left; font-family: var(--display); font-weight: 700; font-size: 14px; }
+.sect td.best { color: var(--live); }
+
+.loading { text-align: center; padding: 28px 16px; color: var(--muted); font-size: 13px; }
+
 </style>
 
 <div class="app">
@@ -520,6 +583,8 @@ select.compact { padding: 8px 10px; font-size: 13px; }
 
 <div class="sheet-bg" id="sheet-bg"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Détail de la séance"></div>
+<div class="sheet-bg" id="ana-bg"></div>
+<div class="sheet full" id="ana" role="dialog" aria-modal="true" aria-label="Analyse de la séance"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1640,6 +1705,12 @@ function renderSheet() {
              target="_blank" rel="noopener noreferrer" data-launch="${v.src.id}">Ouvrir ↗</a>` : ""}
       </div>
 
+      ${now > new Date(start.getTime() + k.mins * 60000) ? `
+      <button class="btn" data-ana="${rd.r}:${kind}" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <span>Analyser la séance</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">rythme · secteurs · pneus →</span>
+      </button>` : ""}
+
       <div class="seg" id="srcseg">
         <button data-srcview="all"  aria-pressed="${state.srcView === "all"}">Tout <span class="segnum">${full.length}</span></button>
         <button data-srcview="free" aria-pressed="${state.srcView === "free"}">Gratuit <span class="segnum">${full.filter(b => b.kind === "free").length}</span></button>
@@ -1982,6 +2053,8 @@ document.querySelector(".app").addEventListener("click", e => {
 
 /* Actions dans la feuille : déplier une source, ouvrir, copier. */
 $("sheet").addEventListener("click", async e => {
+  const an = e.target.closest("[data-ana]");
+  if (an) { const [ar, ak] = an.dataset.ana.split(":"); openAnalysis(Number(ar), ak); return; }
   const edit = e.target.closest("[data-edit]");
   if (edit) { state.editUrl = edit.dataset.edit; renderSheet(); $("urlin")?.focus(); return; }
 
@@ -2109,4 +2182,364 @@ if (/(^|[#&])watch/.test(location.hash)) {
   const cur = current(new Date());
   if (cur) openSheet(cur.s.round.r, cur.s.kind);
 }
+
+/* ==================================================================
+   ANALYSE DE SÉANCE — API OpenF1 (openf1.org)
+   Niveau gratuit : tous les endpoints, historique depuis 2023, pas de
+   flux en direct (celui-ci est réservé aux comptes sponsors). Les
+   données d'une séance arrivent donc une fois celle-ci terminée.
+   Licence CC BY-NC-SA 4.0 — usage personnel non commercial.
+   ================================================================== */
+
+const OF1 = "https://api.openf1.org/v1/";
+
+/* Teintes de séries validées pour le fond sombre #14141C
+   (bande de clarté, plancher de chroma, séparation en vision
+   déficiente et contraste : tous les contrôles passent). */
+const SERIES = ["#3987E5", "#D95926", "#199E70", "#C98500", "#D55181"];
+const MAX_SERIES = SERIES.length;
+
+/* Code couleur pneu officiel : universel chez tous les diffuseurs.
+   Il sort du nuancier de l'app — c'est assumé, et chaque segment
+   porte sa lettre pour que la couleur ne soit jamais seule à parler. */
+const TYRES = {
+  SOFT:         { c:"#FF3333", l:"S", n:"Tendre",      dark:true  },
+  MEDIUM:       { c:"#FFF200", l:"M", n:"Medium",      dark:false },
+  HARD:         { c:"#FFFFFF", l:"H", n:"Dur",         dark:false },
+  INTERMEDIATE: { c:"#43B02A", l:"I", n:"Intermédiaire", dark:false },
+  WET:          { c:"#0067AD", l:"W", n:"Pluie",       dark:true  },
+  UNKNOWN:      { c:"#3A3A4C", l:"?", n:"Inconnu",     dark:true  }
+};
+
+const ofCache = new Map();
+async function of1(path) {
+  if (ofCache.has(path)) return ofCache.get(path);
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const r = await fetch(OF1 + path, { signal: ctl.signal, cache: "force-cache" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    ofCache.set(path, j);
+    return j;
+  } finally { clearTimeout(to); }
+}
+
+const ana = { open:false, s:null, key:null, drivers:null, stints:null, laps:null,
+              sel:[], step:"init", err:null };
+
+/* Appariement par instant de départ : OpenF1 nomme parfois la manche
+   autrement que l'API Jolpica (manche 16 : « Bahrain » chez l'un,
+   « Malaisie » chez l'autre). La date, elle, ne ment pas. */
+async function of1Key(sess) {
+  const list = await of1("sessions?year=" + SEASON);
+  let best = null, bestGap = Infinity;
+  for (const o of list) {
+    const gap = Math.abs(new Date(o.date_start) - sess.start);
+    if (gap < bestGap) { bestGap = gap; best = o; }
+  }
+  return bestGap <= 2 * 3600 * 1000 ? best.session_key : null;
+}
+
+function openAnalysis(roundNo, kind) {
+  const rd = ROUNDS.find(r => r.r === roundNo);
+  const sess = roundSessions(rd).find(x => x.kind === kind);
+  if (!sess) return;
+  closeSheet();
+  Object.assign(ana, { open:true, s:sess, key:null, drivers:null, stints:null,
+                       laps:null, sel:[], step:"loading", err:null });
+  $("ana-bg").classList.add("on");
+  $("ana").classList.add("on");
+  document.body.style.overflow = "hidden";
+  renderAna();
+  loadAnaBase();
+}
+
+function closeAnalysis() {
+  ana.open = false;
+  $("ana-bg").classList.remove("on");
+  $("ana").classList.remove("on");
+  document.body.style.overflow = "";
+}
+
+async function loadAnaBase() {
+  try {
+    const key = await of1Key(ana.s);
+    if (!key) { ana.step = "none"; renderAna(); return; }
+    ana.key = key;
+    const [drivers, stints] = await Promise.all([
+      of1("drivers?session_key=" + key),
+      of1("stints?session_key=" + key)
+    ]);
+    if (!stints.length) { ana.step = "none"; renderAna(); return; }
+    ana.drivers = drivers;
+    ana.stints = stints;
+    const present = new Set(stints.map(x => x.driver_number));
+    ana.sel = DRIVERS.filter(d => present.has(d.n)).slice(0, MAX_SERIES).map(d => d.n);
+    ana.step = "base";
+  } catch (e) {
+    ana.err = e.message; ana.step = "error";
+  }
+  renderAna();
+}
+
+async function loadAnaLaps() {
+  ana.step = "laps-loading"; renderAna();
+  try {
+    ana.laps = await of1("laps?session_key=" + ana.key);
+    ana.step = "laps";
+  } catch (e) { ana.err = e.message; ana.step = "error"; }
+  renderAna();
+}
+
+const drvName = n => (DRIVERS.find(d => d.n === n) || {}).last
+                  || ((ana.drivers || []).find(d => d.driver_number === n) || {}).name_acronym
+                  || ("#" + n);
+const drvCode = n => (DRIVERS.find(d => d.n === n) || {}).code
+                  || ((ana.drivers || []).find(d => d.driver_number === n) || {}).name_acronym
+                  || String(n);
+const hue = n => SERIES[ana.sel.indexOf(n)] || "var(--muted)";
+const mmss = sec => {
+  if (sec == null) return "—";
+  const m = Math.floor(sec / 60), r = sec - m * 60;
+  return m ? `${m}:${r.toFixed(3).padStart(6, "0")}` : r.toFixed(3);
+};
+
+/* ---------- Relais et pneus ---------- */
+function stintStrip() {
+  const by = new Map();
+  for (const st of ana.stints) {
+    if (!by.has(st.driver_number)) by.set(st.driver_number, []);
+    by.get(st.driver_number).push(st);
+  }
+  const total = Math.max(...ana.stints.map(s => s.lap_end || 0), 1);
+  const order = [...by.keys()].sort((a, b) => {
+    const pa = (DRIVERS.find(d => d.n === a) || { p: 99 }).p;
+    const pb = (DRIVERS.find(d => d.n === b) || { p: 99 }).p;
+    return pa - pb;
+  });
+  const used = new Set(ana.stints.map(s => s.compound || "UNKNOWN"));
+
+  return `
+    <div class="sec">
+      <div class="sechead"><div class="eyebrow">Relais et pneus</div><span class="seccount">${order.length} pilotes</span></div>
+      <div class="viz">
+        <div class="stints">
+          ${order.map(n => {
+            const segs = by.get(n).sort((a, b) => a.stint_number - b.stint_number);
+            return `<div class="stint-row">
+              <div class="stint-who">${esc(drvCode(n))}</div>
+              <div class="stint-bars">
+                ${segs.map(st => {
+                  const t = TYRES[st.compound] || TYRES.UNKNOWN;
+                  const len = Math.max(1, (st.lap_end || 0) - (st.lap_start || 0) + 1);
+                  return `<div class="stint-seg ${t.dark ? "dark" : ""}"
+                            style="flex:${len};background:${t.c}"
+                            title="${esc(t.n)} · tours ${st.lap_start}–${st.lap_end} · ${st.tyre_age_at_start} tour(s) d'usure au départ">${t.l}</div>`;
+                }).join("")}
+              </div>
+            </div>`;
+          }).join("")}
+        </div>
+        <div class="tyrekey">
+          ${[...used].map(c => { const t = TYRES[c] || TYRES.UNKNOWN;
+            return `<span><i style="background:${t.c}"></i>${t.l} — ${esc(t.n)}</span>`; }).join("")}
+        </div>
+      </div>
+      <div class="prose">Largeur proportionnelle au nombre de tours du relais. ${total} tours au total.</div>
+    </div>`;
+}
+
+/* ---------- Rythme au tour ----------
+   Un tour d'arrêt ou de voiture de sécurité peut valoir le double d'un
+   tour normal : sans écrêtage de l'échelle, toutes les courbes
+   s'aplatissent. On borne au 90e centile + 3 s et on signale le reste. */
+function paceChart() {
+  const W = 358, H = 230, PL = 42, PR = 8, PT = 10, PB = 22;
+  const sel = ana.sel;
+  const rows = ana.laps.filter(l => sel.includes(l.driver_number) && l.lap_duration);
+  if (!rows.length) return `<div class="prose">Aucun temps au tour exploitable pour cette sélection.</div>`;
+
+  const times = rows.map(l => l.lap_duration).sort((a, b) => a - b);
+  const fastest = times[0];
+  const lo = fastest - 0.4;
+  const q = f => times[Math.min(times.length - 1, Math.floor(times.length * f))];
+  const hi = Math.max(fastest * 1.06, Math.min(q(0.90), fastest * 1.35));
+  const maxLap = Math.max(...rows.map(l => l.lap_number));
+  const clipped = rows.filter(l => l.lap_duration > hi).length;
+
+  const x = n => PL + (n - 1) / Math.max(1, maxLap - 1) * (W - PL - PR);
+  const y = t => PT + (1 - (Math.min(t, hi) - lo) / Math.max(0.001, hi - lo)) * (H - PT - PB);
+
+  const ticks = 4, yt = [];
+  for (let i = 0; i <= ticks; i++) yt.push(lo + (hi - lo) * i / ticks);
+  const xStep = maxLap > 40 ? 10 : maxLap > 20 ? 5 : 2;
+
+  const paths = sel.map((n, i) => {
+    const pts = rows.filter(l => l.driver_number === n).sort((a, b) => a.lap_number - b.lap_number);
+    if (!pts.length) return "";
+    let d = "", pen = false;
+    for (const l of pts) {
+      if (l.lap_duration > hi) { pen = false; continue; }
+      d += `${pen ? "L" : "M"}${x(l.lap_number).toFixed(1)},${y(l.lap_duration).toFixed(1)}`;
+      pen = true;
+    }
+    if (!d) return "";
+    return `<path class="serie" d="${d}" stroke="${SERIES[i]}"/>`;
+  }).join("");
+
+  return `
+    <div class="viz" style="position:relative" id="pace">
+      <svg viewBox="0 0 ${W} ${H}" role="img"
+           aria-label="Temps au tour par pilote, du tour 1 au tour ${maxLap}">
+        <g class="grid">
+          ${yt.map(t => `<line x1="${PL}" x2="${W - PR}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" opacity="${t === yt[0] ? .9 : .45}"/>`).join("")}
+        </g>
+        <g class="axis" text-anchor="end">
+          ${yt.map(t => `<text x="${PL - 6}" y="${(y(t) + 3.4).toFixed(1)}">${mmss(t).slice(0, 6)}</text>`).join("")}
+        </g>
+        <g class="axis" text-anchor="middle">
+          ${Array.from({ length: Math.floor(maxLap / xStep) + 1 }, (_, i) => i * xStep).filter(v => v >= 1).map(v =>
+            `<text x="${x(v).toFixed(1)}" y="${H - 6}">${v}</text>`).join("")}
+        </g>
+        ${paths}
+        <line class="cross" id="cx" x1="0" x2="0" y1="${PT}" y2="${H - PB}" style="display:none"/>
+        <g id="cpts"></g>
+        <rect class="hit" id="hit" x="${PL}" y="${PT}" width="${W - PL - PR}" height="${H - PT - PB}"/>
+      </svg>
+      <div class="tip" id="tip" style="display:none"></div>
+    </div>
+    <div class="legend" role="group" aria-label="Pilotes affichés">
+      ${DRIVERS.filter(d => ana.laps.some(l => l.driver_number === d.n)).map(d => {
+          const on = sel.includes(d.n);
+          return `<button data-drv="${d.n}" aria-pressed="${on}">
+            <span class="swatch" style="background:${on ? hue(d.n) : "var(--muted)"}"></span>
+            <span class="code">${esc(d.code)}</span></button>`;
+        }).join("")}
+    </div>
+    <div class="prose" style="margin-top:8px">
+      Échelle bornée à ${mmss(hi).slice(0, 6)}, adaptée à la dispersion de la séance${clipped ? ` — ${clipped} tour${clipped > 1 ? "s" : ""} au-delà : arrêt, voiture de sécurité ou drapeau. La courbe s'interrompt plutôt que de s'aplatir, pour ne pas mentir sur le rythme` : ""}.
+      Cinq pilotes au maximum : au-delà, les teintes ne se distinguent plus de façon fiable.
+    </div>`;
+}
+
+/* ---------- Secteurs ---------- */
+function sectorTable() {
+  const best = n => {
+    const ls = ana.laps.filter(l => l.driver_number === n);
+    const mn = k => { const v = ls.map(l => l[k]).filter(x => x != null); return v.length ? Math.min(...v) : null; };
+    return { s1: mn("duration_sector_1"), s2: mn("duration_sector_2"), s3: mn("duration_sector_3"), lap: mn("lap_duration") };
+  };
+  const rows = ana.sel.map(n => ({ n, ...best(n) }));
+  const colMin = k => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? Math.min(...v) : null; };
+  const m = { s1: colMin("s1"), s2: colMin("s2"), s3: colMin("s3"), lap: colMin("lap") };
+  const cell = (v, k) => `<td class="${v != null && v === m[k] ? "best" : ""}">${v == null ? "—" : (k === "lap" ? mmss(v) : v.toFixed(3))}</td>`;
+
+  return `
+    <div class="sec">
+      <div class="sechead"><div class="eyebrow">Meilleurs secteurs</div><span class="seccount">en secondes</span></div>
+      <div class="viz">
+        <table class="sect">
+          <thead><tr><th>Pilote</th><th>S1</th><th>S2</th><th>S3</th><th>Tour</th></tr></thead>
+          <tbody>${rows.map(r => `<tr><td>${esc(drvCode(r.n))}</td>${cell(r.s1, "s1")}${cell(r.s2, "s2")}${cell(r.s3, "s3")}${cell(r.lap, "lap")}</tr>`).join("")}</tbody>
+        </table>
+      </div>
+      <div class="prose">En vert, le meilleur de la sélection sur chaque colonne. Les meilleurs secteurs ne proviennent pas forcément du même tour : leur somme est un tour théorique, pas un tour réalisé.</div>
+    </div>`;
+}
+
+function renderAna() {
+  const el = $("ana");
+  if (!ana.s) { el.innerHTML = ""; return; }
+  const k = KINDS[ana.s.kind], rd = ana.s.round;
+  const head = `
+    <div class="sheet-bar">
+      <div class="ana-bar">
+        <button class="ana-back" id="ana-close" aria-label="Fermer">‹</button>
+        <div>
+          <div class="ana-title">${esc(k.long)}</div>
+          <div class="ana-sub">${esc(rd.name)} · ${esc(rd.circuit)}</div>
+        </div>
+      </div>
+    </div>`;
+
+  let body;
+  if (ana.step === "loading") body = `<div class="loading">Lecture des données OpenF1…</div>`;
+  else if (ana.step === "error") body = `
+    <div class="notice"><span>◆</span><div>Données indisponibles (${esc(ana.err || "réseau")}).
+      OpenF1 limite à 3 requêtes par seconde sans compte ; réessaie dans un instant.</div></div>`;
+  else if (ana.step === "none") body = `
+    <div class="notice"><span>◆</span><div>Aucune donnée pour cette séance. Le niveau gratuit d'OpenF1 ne sert pas
+      le direct : les tours, secteurs et relais n'apparaissent qu'une fois la séance terminée.</div></div>`;
+  else body = `
+    <div class="stack-l">
+      ${stintStrip()}
+      <div class="sec">
+        <div class="sechead"><div class="eyebrow">Rythme au tour</div><span class="seccount">${ana.step === "laps" ? "chargé" : "~0,5 Mo"}</span></div>
+        ${ana.step === "laps" ? paceChart()
+          : ana.step === "laps-loading" ? `<div class="loading">Chargement des tours…</div>`
+          : `<button class="btn" id="ana-laps">Charger le rythme au tour et les secteurs</button>
+             <div class="prose">Environ 0,5 Mo. Chargé à la demande pour ne pas consommer de données en déplacement.</div>`}
+      </div>
+      ${ana.step === "laps" ? sectorTable() : ""}
+      <div class="prose">Source : <strong>OpenF1</strong> (openf1.org), licence CC BY-NC-SA 4.0, usage personnel.
+        Projet non officiel, sans lien avec la Formule 1.</div>
+    </div>`;
+
+  el.innerHTML = head + body;
+  if (ana.step === "laps") wirePace();
+}
+
+function wirePace() {
+  const svg = $("pace").querySelector("svg");
+  const hit = $("hit"), cx = $("cx"), cpts = $("cpts"), tip = $("tip");
+  const W = 358, PL = 42, PR = 8;
+  const rows = ana.laps.filter(l => ana.sel.includes(l.driver_number) && l.lap_duration);
+  const maxLap = Math.max(...rows.map(l => l.lap_number));
+  const times = rows.map(l => l.lap_duration).sort((a, b) => a - b);
+  const lo = times[0] - 0.4;
+  const q = f => times[Math.min(times.length - 1, Math.floor(times.length * f))];
+  const hi = Math.max(times[0] * 1.06, Math.min(q(0.90), times[0] * 1.35));
+  const H = 230, PT = 10, PB = 22;
+  const x = n => PL + (n - 1) / Math.max(1, maxLap - 1) * (W - PL - PR);
+  const y = t => PT + (1 - (Math.min(t, hi) - lo) / Math.max(.001, hi - lo)) * (H - PT - PB);
+
+  const move = ev => {
+    const r = svg.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width * W;
+    const lap = Math.round(1 + (px - PL) / (W - PL - PR) * (maxLap - 1));
+    if (lap < 1 || lap > maxLap) return;
+    cx.style.display = ""; cx.setAttribute("x1", x(lap)); cx.setAttribute("x2", x(lap));
+    const here = ana.sel.map((n, i) => ({ n, i, l: rows.find(l => l.driver_number === n && l.lap_number === lap) })).filter(o => o.l);
+    const vis = here.filter(o => o.l.lap_duration <= hi);
+    cpts.innerHTML = vis.map(o => `<circle class="pt" cx="${x(lap).toFixed(1)}" cy="${y(o.l.lap_duration).toFixed(1)}" r="4" fill="${SERIES[o.i]}"/>`).join("");
+    tip.style.display = "";
+    tip.innerHTML = `<div class="lap">TOUR ${lap}</div>` + here.map(o =>
+      `<div class="row"><span class="swatch" style="background:${SERIES[o.i]};width:9px;height:9px;border-radius:2px"></span>${esc(drvCode(o.n))}<b>${mmss(o.l.lap_duration)}</b></div>`).join("");
+    const left = Math.min(Math.max(8, x(lap) / W * r.width - 56), r.width - 130);
+    tip.style.left = left + "px"; tip.style.top = "14px";
+  };
+  const leave = () => { cx.style.display = "none"; cpts.innerHTML = ""; tip.style.display = "none"; };
+  hit.addEventListener("mousemove", move);
+  hit.addEventListener("mouseleave", leave);
+  hit.addEventListener("touchstart", move, { passive: true });
+  hit.addEventListener("touchmove", move, { passive: true });
+  hit.addEventListener("touchend", leave);
+}
+
+$("ana").addEventListener("click", e => {
+  if (e.target.closest("#ana-close")) { closeAnalysis(); return; }
+  if (e.target.closest("#ana-laps"))  { loadAnaLaps(); return; }
+  const d = e.target.closest("[data-drv]");
+  if (d) {
+    const n = Number(d.dataset.drv);
+    const i = ana.sel.indexOf(n);
+    if (i >= 0) { if (ana.sel.length > 1) ana.sel.splice(i, 1); }
+    else if (ana.sel.length < MAX_SERIES) ana.sel.push(n);
+    else { toast(`${MAX_SERIES} pilotes au maximum — retire-s'en un`); return; }
+    renderAna();
+  }
+});
+$("ana-bg").onclick = closeAnalysis;
+
 </script>
