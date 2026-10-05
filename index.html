@@ -531,8 +531,8 @@ select.compact { padding: 8px 10px; font-size: 13px; }
    ================================================================== */
 
 const SEASON = 2026;
-const SNAPSHOT = "2026-09-02";
-const STANDINGS_AFTER = 12;   // dernière manche prise en compte
+const SNAPSHOT = "2026-10-05";
+const STANDINGS_AFTER = 16;   // dernière manche prise en compte
 
 const ROUNDS = [
   { r:1,  name:"Grand Prix d'Australie",     circuit:"Albert Park",             city:"Melbourne",    cc:"AU", tz:"Australia/Melbourne",
@@ -607,29 +607,29 @@ const ORDER = ["fp1","fp2","sq","fp3","sprint","q","race"];
    ================================================================== */
 
 const DRIVERS = [
-  { p:1,  pts:242, w:6, code:"ANT", n:12, first:"Andrea Kimi", last:"Antonelli",  nat:"IT", team:"Mercedes" },
-  { p:2,  pts:183, w:2, code:"RUS", n:63, first:"George",      last:"Russell",    nat:"GB", team:"Mercedes" },
-  { p:3,  pts:183, w:1, code:"HAM", n:44, first:"Lewis",       last:"Hamilton",   nat:"GB", team:"Ferrari" },
-  { p:4,  pts:159, w:2, code:"NOR", n:1,  first:"Lando",       last:"Norris",     nat:"GB", team:"McLaren" },
-  { p:5,  pts:155, w:1, code:"LEC", n:16, first:"Charles",     last:"Leclerc",    nat:"MC", team:"Ferrari" },
-  { p:6,  pts:112, w:0, code:"VER", n:3,  first:"Max",         last:"Verstappen", nat:"NL", team:"Red Bull" },
-  { p:7,  pts:104, w:0, code:"PIA", n:81, first:"Oscar",       last:"Piastri",    nat:"AU", team:"McLaren" },
-  { p:8,  pts:68,  w:0, code:"HAD", n:6,  first:"Isack",       last:"Hadjar",     nat:"FR", team:"Red Bull" },
-  { p:9,  pts:49,  w:0, code:"LAW", n:30, first:"Liam",        last:"Lawson",     nat:"NZ", team:"RB" },
-  { p:10, pts:44,  w:0, code:"GAS", n:10, first:"Pierre",      last:"Gasly",      nat:"FR", team:"Alpine" },
-  { p:11, pts:23,  w:0, code:"LIN", n:41, first:"Arvid",       last:"Lindblad",   nat:"GB", team:"RB" },
-  { p:12, pts:19,  w:0, code:"COL", n:43, first:"Franco",      last:"Colapinto",  nat:"AR", team:"Alpine" },
-  { p:13, pts:18,  w:0, code:"BEA", n:87, first:"Oliver",      last:"Bearman",    nat:"GB", team:"Haas" },
-  { p:14, pts:10,  w:0, code:"BOR", n:5,  first:"Gabriel",     last:"Bortoleto",  nat:"BR", team:"Audi" },
-  { p:15, pts:6,   w:0, code:"HUL", n:27, first:"Nico",        last:"Hülkenberg", nat:"DE", team:"Audi" },
-  { p:16, pts:6,   w:0, code:"SAI", n:55, first:"Carlos",      last:"Sainz",      nat:"ES", team:"Williams" },
-  { p:17, pts:5,   w:0, code:"ALB", n:23, first:"Alexander",   last:"Albon",      nat:"TH", team:"Williams" },
-  { p:18, pts:3,   w:0, code:"OCO", n:31, first:"Esteban",     last:"Ocon",       nat:"FR", team:"Haas" },
-  { p:19, pts:3,   w:0, code:"ALO", n:14, first:"Fernando",    last:"Alonso",     nat:"ES", team:"Aston Martin" },
-  { p:20, pts:0,   w:0, code:"TSU", n:22, first:"Yuki",        last:"Tsunoda",    nat:"JP", team:"RB" },
-  { p:21, pts:0,   w:0, code:"STR", n:18, first:"Lance",       last:"Stroll",     nat:"CA", team:"Aston Martin" },
-  { p:22, pts:0,   w:0, code:"BOT", n:77, first:"Valtteri",    last:"Bottas",     nat:"FI", team:"Cadillac" },
-  { p:23, pts:0,   w:0, code:"PER", n:11, first:"Sergio",      last:"Pérez",      nat:"MX", team:"Cadillac" }
+  { p:1 , pts:320 , w:8, code:"ANT", n:12 , first:"Andrea Kimi",    last:"Antonelli",    nat:"IT", team:"Mercedes" },
+  { p:2 , pts:236 , w:3, code:"RUS", n:63 , first:"George",         last:"Russell",      nat:"GB", team:"Mercedes" },
+  { p:3 , pts:214 , w:1, code:"HAM", n:44 , first:"Lewis",          last:"Hamilton",     nat:"GB", team:"Ferrari" },
+  { p:4 , pts:191 , w:1, code:"LEC", n:16 , first:"Charles",        last:"Leclerc",      nat:"MC", team:"Ferrari" },
+  { p:5 , pts:188 , w:2, code:"NOR", n:1  , first:"Lando",          last:"Norris",       nat:"GB", team:"McLaren" },
+  { p:6 , pts:188 , w:1, code:"VER", n:3  , first:"Max",            last:"Verstappen",   nat:"NL", team:"Red Bull" },
+  { p:7 , pts:128 , w:0, code:"PIA", n:81 , first:"Oscar",          last:"Piastri",      nat:"AU", team:"McLaren" },
+  { p:8 , pts:96  , w:0, code:"HAD", n:6  , first:"Isack",          last:"Hadjar",       nat:"FR", team:"Red Bull" },
+  { p:9 , pts:65  , w:0, code:"LAW", n:30 , first:"Liam",           last:"Lawson",       nat:"NZ", team:"RB" },
+  { p:10, pts:41  , w:0, code:"GAS", n:10 , first:"Pierre",         last:"Gasly",        nat:"FR", team:"Alpine" },
+  { p:11, pts:38  , w:0, code:"LIN", n:41 , first:"Arvid",          last:"Lindblad",     nat:"GB", team:"RB" },
+  { p:12, pts:27  , w:0, code:"COL", n:43 , first:"Franco",         last:"Colapinto",    nat:"AR", team:"Alpine" },
+  { p:13, pts:20  , w:0, code:"BEA", n:87 , first:"Oliver",         last:"Bearman",      nat:"GB", team:"Haas" },
+  { p:14, pts:10  , w:0, code:"BOR", n:5  , first:"Gabriel",        last:"Bortoleto",    nat:"BR", team:"Audi" },
+  { p:15, pts:7   , w:0, code:"HUL", n:27 , first:"Nico",           last:"Hülkenberg",   nat:"DE", team:"Audi" },
+  { p:16, pts:7   , w:0, code:"OCO", n:31 , first:"Esteban",        last:"Ocon",         nat:"FR", team:"Haas" },
+  { p:17, pts:7   , w:0, code:"ALO", n:14 , first:"Fernando",       last:"Alonso",       nat:"ES", team:"Aston Martin" },
+  { p:18, pts:7   , w:0, code:"SAI", n:55 , first:"Carlos",         last:"Sainz",        nat:"ES", team:"Williams" },
+  { p:19, pts:5   , w:0, code:"ALB", n:23 , first:"Alexander",      last:"Albon",        nat:"TH", team:"Williams" },
+  { p:20, pts:1   , w:0, code:"TSU", n:22 , first:"Yuki",           last:"Tsunoda",      nat:"JP", team:"RB" },
+  { p:21, pts:0   , w:0, code:"STR", n:18 , first:"Lance",          last:"Stroll",       nat:"CA", team:"Aston Martin" },
+  { p:22, pts:0   , w:0, code:"BOT", n:77 , first:"Valtteri",       last:"Bottas",       nat:"FI", team:"Cadillac" },
+  { p:23, pts:0   , w:0, code:"PER", n:11 , first:"Sergio",         last:"Pérez",        nat:"MX", team:"Cadillac" }
 ];
 
 /** Vainqueurs et poleman par manche disputée. */
@@ -645,18 +645,33 @@ const RESULTS = [
   { r:9,  win:"LEC", winName:"Leclerc",   winTeam:"Ferrari",  time:"1:27:11.335", pole:"ANT" },
   { r:10, win:"ANT", winName:"Antonelli", winTeam:"Mercedes", time:"1:24:42.479", pole:"ANT" },
   { r:11, win:"NOR", winName:"Norris",    winTeam:"McLaren",  time:"1:39:56.180", pole:null  },
-  { r:12, win:"NOR", winName:"Norris",    winTeam:"McLaren",  time:"2:04:44.859", pole:null  }
+  { r:12, win:"NOR", winName:"Norris",    winTeam:"McLaren",  time:"2:04:44.859", pole:null  },
+  { r:13, win:"ANT", winName:"Antonelli",  winTeam:"Mercedes", time:"1:51:15.281", pole:"GAS" },
+  { r:14, win:"ANT", winName:"Antonelli",  winTeam:"Mercedes", time:"1:34:23.754", pole:"NOR" },
+  { r:15, win:"RUS", winName:"Russell",    winTeam:"Mercedes", time:"1:38:02.143", pole:"RUS" },
+  { r:16, win:"VER", winName:"Verstappen", winTeam:"Red Bull", time:"1:47:14.808", pole:"VER" }
 ];
 
-/** Constructeurs recalculés à partir des points pilotes. */
+/** Classement constructeurs servi par l'API a la meme manche que les pilotes :
+    plus de recalcul, donc plus d'approximation sur les ecuries a trois pilotes. */
+const CONSTRUCTORS = [
+  { p:1 , team:"Mercedes",       pts:556 , w:11 },
+  { p:2 , team:"Ferrari",        pts:405 , w:2 },
+  { p:3 , team:"McLaren",        pts:316 , w:2 },
+  { p:4 , team:"Red Bull",       pts:298 , w:1 },
+  { p:5 , team:"RB",             pts:90  , w:0 },
+  { p:6 , team:"Alpine",         pts:68  , w:0 },
+  { p:7 , team:"Haas",           pts:27  , w:0 },
+  { p:8 , team:"Audi",           pts:17  , w:0 },
+  { p:9 , team:"Williams",       pts:12  , w:0 },
+  { p:10, team:"Aston Martin",   pts:7   , w:0 },
+  { p:11, team:"Cadillac",       pts:0   , w:0 }
+];
+
 function constructorTable() {
-  const map = new Map();
-  for (const d of DRIVERS) {
-    const t = map.get(d.team) || { team: d.team, pts: 0, w: 0, drivers: [] };
-    t.pts += d.pts; t.w += d.w; t.drivers.push(d.code);
-    map.set(d.team, t);
-  }
-  return [...map.values()].sort((a, b) => b.pts - a.pts).map((t, i) => Object.assign(t, { p: i + 1 }));
+  return CONSTRUCTORS.map(c => Object.assign({}, c, {
+    drivers: DRIVERS.filter(d => d.team === c.team).map(d => d.code)
+  }));
 }
 
 /* ==================================================================
@@ -1420,10 +1435,7 @@ function teamsTable() {
     <div class="sec">
       <div class="grouphead">
         <div class="eyebrow">Championnat constructeurs</div>
-        <div class="groupcount">calculé</div>
-      </div>
-      <div class="notice"><span>◆</span>
-        <div>L'API sert ce classement à une manche antérieure au classement pilotes. Ces totaux sont donc <strong>recalculés</strong> en additionnant les points des pilotes de chaque écurie. Exact sauf changement de pilote en cours de saison — RB aligne trois pilotes cette année, sa ligne est à prendre avec prudence.</div>
+        <div class="groupcount">après manche ${STANDINGS_AFTER}</div>
       </div>
       <div class="card rank">
         ${t.map(c => `
